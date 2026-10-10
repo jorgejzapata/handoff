@@ -151,3 +151,6 @@ vite.config.ts.timestamp-*
 # Firebase
 .firebase/
 *-debug.log
+
+# Local emulator data (npm run emulators saves it here)
+.emulator-data/
