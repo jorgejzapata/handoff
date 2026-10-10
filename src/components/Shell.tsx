@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router'
 import { Heart, MessageCircle, Plus, Search, User } from 'lucide-react'
@@ -16,8 +17,22 @@ export function Mark({ size = 28 }: { size?: number }) {
   )
 }
 
+// The student's photo, or their first initial. Falls back to the initial if
+// the image fails to load.
+function NavAvatar({ name, photoUrl, className }: { name: string; photoUrl?: string; className: string }) {
+  const [broken, setBroken] = useState(false)
+  useEffect(() => setBroken(false), [photoUrl])
+  if (photoUrl && !broken)
+    return <img src={photoUrl} alt="" className={`${className} avatar-img`} onError={() => setBroken(true)} />
+  return (
+    <span className={className} aria-hidden="true">
+      {name[0]?.toUpperCase()}
+    </span>
+  )
+}
+
 export function TopBar() {
-  const { user, loading } = useAuth()
+  const { user, loading, photoUrl } = useAuth()
   const { unreadTotal } = useInbox()
   const { open } = useSignUp()
   const name = user?.displayName || 'Me'
@@ -38,8 +53,8 @@ export function TopBar() {
       <div className="topbar-right desktop-only">
         {!loading &&
           (user ? (
-            <Link to="/me" className="avatar avatar-sm" aria-label={`${name}, your account`}>
-              {name[0]}
+            <Link to="/me" className="topbar-avatar" aria-label={`${name}, your account`}>
+              <NavAvatar name={name} photoUrl={photoUrl} className="avatar avatar-sm" />
             </Link>
           ) : (
             <button type="button" className="text-link" onClick={() => open({ reason: 'login' })}>
@@ -97,7 +112,7 @@ function NavTab({
 }
 
 export function BottomNav() {
-  const { user, verified } = useAuth()
+  const { user, verified, photoUrl } = useAuth()
   const { unreadTotal } = useInbox()
   const { open } = useSignUp()
   return (
@@ -116,7 +131,13 @@ export function BottomNav() {
       />
       <NavTab
         to="/me"
-        icon={<User {...ICON} />}
+        icon={
+          user ? (
+            <NavAvatar name={user.displayName || 'Me'} photoUrl={photoUrl} className="avatar nav-avatar" />
+          ) : (
+            <User {...ICON} />
+          )
+        }
         label={user ? 'Me' : 'Log in'}
         gate={user ? undefined : () => open({ reason: 'login' })}
       />

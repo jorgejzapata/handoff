@@ -8,7 +8,7 @@ import { useToast } from '../components/Toast'
 import { logOut } from '../lib/auth'
 
 export default function Me() {
-  const { user, loading, verified } = useAuth()
+  const { user, loading, verified, photoUrl } = useAuth()
   const { open } = useSignUp()
   const navigate = useNavigate()
   const toast = useToast()
@@ -41,8 +41,8 @@ export default function Me() {
   return (
     <div className="page me">
       <section className="me-head">
-        {user.photoURL ? (
-          <img src={user.photoURL} alt="" className="avatar avatar-img" />
+        {photoUrl ? (
+          <img src={photoUrl} alt="" className="avatar avatar-img" />
         ) : (
           <span className="avatar" aria-hidden="true">
             {name[0]}

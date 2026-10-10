@@ -4,6 +4,7 @@ import { onIdTokenChanged } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { isVerifiedCsu } from '../lib/auth'
+import { fetchProfile } from '../lib/users'
 
 // What the student was doing when the sign-up sheet opened, so Verify can
 // put them right back there. Kept in localStorage so it survives the trip to
@@ -51,6 +52,10 @@ interface AuthState {
   loading: boolean
   verified: boolean
   refresh: () => Promise<boolean>
+  // Profile photo for the nav bar and Me. Profile setup calls setPhotoUrl after
+  // an upload so it shows right away.
+  photoUrl?: string
+  setPhotoUrl: (url: string | undefined) => void
 }
 
 const AuthContext = createContext<AuthState>({
@@ -59,6 +64,7 @@ const AuthContext = createContext<AuthState>({
   loading: true,
   verified: false,
   refresh: async () => false,
+  setPhotoUrl: () => {},
 })
 export const useAuth = () => useContext(AuthContext)
 
@@ -66,6 +72,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(auth.currentUser)
   const [loading, setLoading] = useState(true)
   const [, setVersion] = useState(0)
+  const [photoUrl, setPhotoUrl] = useState<string | undefined>()
+  const uid = user && !user.isAnonymous ? user.uid : null
+
+  // The auth profile usually has the photo; fall back to the users doc.
+  useEffect(() => {
+    const u = auth.currentUser
+    if (!uid || !u) return setPhotoUrl(undefined)
+    if (u.photoURL) return setPhotoUrl(u.photoURL)
+    let live = true
+    fetchProfile(uid).then((p) => live && setPhotoUrl(p?.photoUrl || undefined))
+    return () => {
+      live = false
+    }
+  }, [uid])
 
   useEffect(
     () =>
@@ -96,6 +116,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         verified: isVerifiedCsu(user),
         refresh,
+        photoUrl,
+        setPhotoUrl,
       }}
     >
       {children}

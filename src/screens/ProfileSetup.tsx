@@ -14,7 +14,7 @@ import type { Gender } from '../lib/gender'
 // "Add a face to your name". Shown once, after a first listing goes live
 // (and later after a first message). Every field is optional.
 export default function ProfileSetup() {
-  const { user, loading } = useAuth()
+  const { user, loading, setPhotoUrl: setNavPhoto } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
   const [params] = useSearchParams()
@@ -79,7 +79,10 @@ export default function ProfileSetup() {
           onboardingStep: 'done',
         })
         invalidateMyGroup()
-        if (photoUrl) await updateProfile(user, { photoURL: photoUrl })
+        if (photoUrl) {
+          await updateProfile(user, { photoURL: photoUrl })
+          setNavPhoto(photoUrl)
+        }
         await updateListerOnListings(user.uid, { photoUrl, year })
         toast('Profile saved')
       }

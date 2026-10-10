@@ -997,3 +997,9 @@ button.metric-tile:hover { filter: brightness(0.97); }
 /* Links people type in chat */
 .chat-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; cursor: pointer; }
 .chat-link:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 2px; }
+
+/* Profile photo in the nav */
+.topbar-avatar { display: inline-flex; border-radius: 50%; }
+.topbar-avatar:focus-visible { outline: 2px solid var(--forest-600); outline-offset: 2px; }
+.nav-avatar { width: 26px; height: 26px; font: 700 12px/1 var(--font-body); }
+.nav-item.active .nav-avatar { box-shadow: 0 0 0 2px var(--on-accent); }
