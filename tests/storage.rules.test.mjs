@@ -46,6 +46,30 @@ describe('listing photos', () => {
   })
 })
 
+describe('chat attachments', () => {
+  const pdf = new Uint8Array([0x25, 0x50, 0x44, 0x46, 1, 2, 3])
+  const unverified = { email: 'maya.r@colostate.edu', email_verified: false }
+
+  test('a verified student can upload a photo or PDF into their own folder', async () => {
+    const s = env.authenticatedContext('maya', maya).storage()
+    await assertSucceeds(uploadBytes(ref(s, 'chat-attachments/maya/l1_jake/a.jpg'), jpeg, asJpeg))
+    await assertSucceeds(uploadBytes(ref(s, 'chat-attachments/maya/l1_jake/b.pdf'), pdf, { contentType: 'application/pdf' }))
+  })
+
+  test('no other file types, no other folders, no unverified accounts', async () => {
+    const s = env.authenticatedContext('maya', maya).storage()
+    await assertFails(uploadBytes(ref(s, 'chat-attachments/maya/l1_jake/c.zip'), pdf, { contentType: 'application/zip' }))
+    await assertFails(uploadBytes(ref(s, 'chat-attachments/jake/l1_jake/a.jpg'), jpeg, asJpeg))
+    await assertFails(uploadBytes(ref(env.authenticatedContext('maya', unverified).storage(), 'chat-attachments/maya/l1_jake/a.jpg'), jpeg, asJpeg))
+  })
+
+  test("other people can't read through the SDK (only via the link in the chat)", async () => {
+    await env.withSecurityRulesDisabled((ctx) => uploadBytes(ref(ctx.storage(), 'chat-attachments/maya/l1_jake/a.jpg'), jpeg, asJpeg))
+    await assertFails(getBytes(ref(env.authenticatedContext('sam', maya).storage(), 'chat-attachments/maya/l1_jake/a.jpg')))
+    await assertFails(getBytes(ref(env.unauthenticatedContext().storage(), 'chat-attachments/maya/l1_jake/a.jpg')))
+  })
+})
+
 describe('avatars', () => {
   test('a signed-up student can upload their own avatar', async () => {
     const s = env.authenticatedContext('maya', maya).storage()

@@ -20,6 +20,23 @@ service firebase.storage {
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
+    // Chat attachments: chat-attachments/{uid}/{conversationId}/{file}.
+    // Verified students write into their own folder: resized JPEGs up to 5 MB
+    // or PDFs up to 10 MB. Only the uploader reads through the SDK; the other
+    // person opens it from the link inside the message, which only the two of
+    // them can read (Firestore rules).
+    match /chat-attachments/{uid}/{conversationId}/{file} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email_verified == true
+        && ((request.resource.contentType == 'image/jpeg' && request.resource.size < 5 * 1024 * 1024)
+          || (request.resource.contentType == 'application/pdf' && request.resource.size < 10 * 1024 * 1024));
+      allow update: if false;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
     // Profile photos: avatars/{uid}.jpg, signed-up (not anonymous) students only.
     match /avatars/{file} {
       allow get: if true;

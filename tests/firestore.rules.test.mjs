@@ -537,6 +537,56 @@ describe('conversations: in a thread', () => {
   })
 })
 
+describe('conversations: attachments', () => {
+  beforeEach(async () => {
+    await seedLiveListing()
+    await seedConversation()
+  })
+
+  const photo = (uid, extra = {}) => ({
+    url: 'https://firebasestorage.googleapis.com/v0/b/x/o/y?alt=media&token=t',
+    path: `chat-attachments/${uid}/live_jake/abc123.jpg`,
+    name: 'room.jpg',
+    size: 250000,
+    contentType: 'image/jpeg',
+    width: 1600,
+    height: 1200,
+    ...extra,
+  })
+
+  function sendAttachment(auth, uid, other, type, attachment, text = '') {
+    const db = env.authenticatedContext(uid, auth).firestore()
+    const convRef = doc(db, 'conversations/live_jake')
+    const batch = writeBatch(db)
+    batch.set(doc(collection(convRef, 'messages')), { senderId: uid, text, sentAt: serverTimestamp(), type, attachment })
+    batch.update(convRef, {
+      lastMessage: { text: 'Sent a photo', senderId: uid, sentAt: serverTimestamp() },
+      [`unreadCount.${other}`]: increment(1),
+      [`unreadCount.${uid}`]: 0,
+      [`lastReadAt.${uid}`]: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+    return batch.commit()
+  }
+
+  test('either person can send a photo or a PDF, with or without a caption', async () => {
+    await assertSucceeds(sendAttachment(jakeVerified, 'jake', 'maya', 'image', photo('jake')))
+    await assertSucceeds(
+      sendAttachment(mayaVerified, 'maya', 'jake', 'file', photo('maya', { path: 'chat-attachments/maya/live_jake/lease1.pdf', contentType: 'application/pdf', name: 'lease.pdf' }), 'Here is the lease'),
+    )
+  })
+
+  test("can't point at someone else's upload or another chat's folder", async () => {
+    await assertFails(sendAttachment(jakeVerified, 'jake', 'maya', 'image', photo('maya')))
+    await assertFails(sendAttachment(jakeVerified, 'jake', 'maya', 'image', photo('jake', { path: 'chat-attachments/jake/other_chat/abc.jpg' })))
+  })
+
+  test('only JPEG photos and PDF files, within size limits', async () => {
+    await assertFails(sendAttachment(jakeVerified, 'jake', 'maya', 'file', photo('jake', { contentType: 'application/zip', path: 'chat-attachments/jake/live_jake/a.pdf' })))
+    await assertFails(sendAttachment(jakeVerified, 'jake', 'maya', 'image', photo('jake', { size: 6 * 1024 * 1024 })))
+  })
+})
+
 describe('reports', () => {
   const report = (extra = {}) => ({
     reporterId: 'jake',

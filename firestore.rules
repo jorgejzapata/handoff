@@ -302,24 +302,49 @@ service cloud.firestore {
           return getAfter(/databases/$(database)/documents/conversations/$(convId)).data;
         }
 
+        // A photo (JPEG, resized by the app, up to 5 MB) or a PDF (up to 10 MB),
+        // uploaded by the sender into their own folder for this conversation.
+        function validAttachment(a, kind) {
+          return a is map
+            && a.keys().hasOnly(['url', 'path', 'name', 'size', 'contentType', 'width', 'height'])
+            && a.keys().hasAll(['url', 'path', 'name', 'size', 'contentType'])
+            && isShortString(a.url, 1, 2000)
+            && a.path.matches('chat-attachments/' + request.auth.uid + '/' + convId + '/[A-Za-z0-9]+[.](jpg|pdf)')
+            && isShortString(a.name, 1, 120)
+            && a.size is int && a.size > 0
+            && ((kind == 'image' && a.contentType == 'image/jpeg' && a.size <= 5 * 1024 * 1024)
+              || (kind == 'file' && a.contentType == 'application/pdf' && a.size <= 10 * 1024 * 1024));
+        }
+
         allow read: if signedIn()
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participantIds;
 
         allow create: if isVerifiedCsu()
           && request.auth.uid in convAfter().participantIds
           && convAfter().blockedBy == null
-          && request.resource.data.keys().hasOnly(['senderId', 'text', 'sentAt', 'type'])
+          && request.resource.data.keys().hasOnly(['senderId', 'text', 'sentAt', 'type', 'attachment'])
           && request.resource.data.senderId == request.auth.uid
           && request.resource.data.sentAt == request.time
-          && isShortString(request.resource.data.text, 1, 1000)
+          && isShortString(request.resource.data.text, 0, 1000)
           && (
-            (request.resource.data.type == 'text' && convAfter().closedReason == null)
+            (request.resource.data.type == 'text'
+              && request.resource.data.text.size() >= 1
+              && !('attachment' in request.resource.data)
+              && convAfter().closedReason == null)
+            // A photo or PDF, with an optional caption
+            || (request.resource.data.type in ['image', 'file']
+              && validAttachment(request.resource.data.attachment, request.resource.data.type)
+              && convAfter().closedReason == null)
             // Only the lister can share the exact address
             || (request.resource.data.type == 'address'
+              && request.resource.data.text.size() >= 1
+              && !('attachment' in request.resource.data)
               && request.auth.uid == convAfter().listerId
               && convAfter().closedReason == null)
             // "Maya marked this place as filled." when a thread closes
             || (request.resource.data.type == 'system'
+              && request.resource.data.text.size() >= 1
+              && !('attachment' in request.resource.data)
               && request.auth.uid == convAfter().listerId
               && convAfter().closedReason != null)
           );

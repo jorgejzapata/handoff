@@ -9,7 +9,7 @@ import type { Photo } from './listings'
 //   listing-photos/{uid}/{listingId}/{photoId}_400.jpg  400px thumbnail
 //   avatars/{uid}.jpg
 
-async function decode(file: File): Promise<ImageBitmap | HTMLImageElement> {
+export async function decode(file: File): Promise<ImageBitmap | HTMLImageElement> {
   try {
     return await createImageBitmap(file, { imageOrientation: 'from-image' })
   } catch {
@@ -26,7 +26,7 @@ async function decode(file: File): Promise<ImageBitmap | HTMLImageElement> {
   }
 }
 
-async function resize(source: ImageBitmap | HTMLImageElement, longEdge: number, square = false) {
+export async function resize(source: ImageBitmap | HTMLImageElement, longEdge: number, square = false) {
   const w = source.width
   const h = source.height
   let sx = 0
@@ -51,7 +51,7 @@ async function resize(source: ImageBitmap | HTMLImageElement, longEdge: number, 
   return { blob, width: canvas.width, height: canvas.height }
 }
 
-function newId() {
+export function newId() {
   return crypto.randomUUID().replace(/-/g, '').slice(0, 16)
 }
 

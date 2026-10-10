@@ -18,6 +18,7 @@ import type { User } from 'firebase/auth'
 import { db } from './firebase'
 import type { Listing, PrivateLocation } from './listings'
 import { fetchProfile } from './users'
+import type { Attachment } from './attachments'
 
 // ---- Model (conversations collection in the MVP spec) ----
 
@@ -43,14 +44,15 @@ export interface Conversation {
   updatedAt: Date | null
 }
 
-export type MessageType = 'text' | 'address' | 'system'
+export type MessageType = 'text' | 'address' | 'system' | 'image' | 'file'
 
 export interface Message {
   id: string
   senderId: string
-  text: string
+  text: string // a caption for photos and files; may be empty
   sentAt: Date | null // null until the server confirms it
   type: MessageType
+  attachment?: Attachment
   pending: boolean
 }
 
@@ -132,6 +134,7 @@ export function subscribeMessages(convId: string, onChange: (m: Message[]) => vo
           text: data.text,
           sentAt: toDate(data.sentAt),
           type: data.type ?? 'text',
+          attachment: data.attachment ?? undefined,
           pending: d.metadata.hasPendingWrites,
         }
       }),
@@ -188,15 +191,35 @@ export async function startConversation(listing: Listing, seeker: User, text: st
   return id
 }
 
-export async function sendMessage(c: Conversation, me: string, text: string, type: 'text' | 'address' = 'text') {
+export async function sendMessage(
+  c: Conversation,
+  me: string,
+  text: string,
+  type: 'text' | 'address' | 'image' | 'file' = 'text',
+  attachment?: Attachment,
+) {
   const clean = text.trim().slice(0, MESSAGE_MAX)
-  if (!clean) return
+  if (!clean && !attachment) return
   const other = otherPerson(c, me).id
   const convRef = doc(db, 'conversations', c.id)
+  const preview =
+    type === 'address'
+      ? 'Shared the address'
+      : type === 'image'
+        ? clean ? `Photo: ${clean}` : 'Sent a photo'
+        : type === 'file'
+          ? `Sent ${attachment?.name ?? 'a file'}`
+          : clean
   const batch = writeBatch(db)
-  batch.set(doc(collection(convRef, 'messages')), { senderId: me, text: clean, sentAt: serverTimestamp(), type })
+  batch.set(doc(collection(convRef, 'messages')), {
+    senderId: me,
+    text: clean,
+    sentAt: serverTimestamp(),
+    type,
+    ...(attachment ? { attachment } : {}),
+  })
   batch.update(convRef, {
-    lastMessage: { text: type === 'address' ? 'Shared the address' : clean, senderId: me, sentAt: serverTimestamp() },
+    lastMessage: { text: preview.slice(0, MESSAGE_MAX), senderId: me, sentAt: serverTimestamp() },
     [`unreadCount.${other}`]: increment(1),
     [`unreadCount.${me}`]: 0,
     [`lastReadAt.${me}`]: serverTimestamp(),

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ArrowLeft, ArrowUp, BadgeCheck, EllipsisVertical, Info, MapPin, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, ArrowUp, BadgeCheck, EllipsisVertical, FileText, Info, MapPin, Paperclip, RotateCw, ShieldAlert, X } from 'lucide-react'
 import { useAuth } from '../../components/AuthProvider'
 import { useToast } from '../../components/Toast'
 import { ConfirmDialog } from '../../components/Sheet'
@@ -20,6 +20,20 @@ import {
 import type { Conversation, Message } from '../../lib/messages'
 import { fetchPrivateLocation } from '../../lib/listings'
 import { formatDates, formatRent } from '../../lib/format'
+import { formatBytes, isAllowedFile, uploadAttachment } from '../../lib/attachments'
+import type { Attachment } from '../../lib/attachments'
+
+// A photo or PDF picked in the composer, uploading or ready to send.
+interface PendingFile {
+  key: string
+  name: string
+  kind: 'image' | 'file'
+  preview?: string
+  progress: number
+  attachment?: Attachment
+  failed: boolean
+  file: File
+}
 
 const timeFmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
 const dayFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
@@ -48,6 +62,8 @@ export function Thread({ id }: { id: string }) {
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [address, setAddress] = useState<string | null>(null)
   const [openTime, setOpenTime] = useState<string | null>(null)
+  const [pendingFile, setPendingFile] = useState<PendingFile | null>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
 
   const bottom = useRef<HTMLDivElement>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
@@ -93,7 +109,28 @@ export function Thread({ id }: { id: string }) {
   const seen = !!(lastMine?.sentAt && otherReadAt && otherReadAt >= lastMine.sentAt)
 
   async function send(text = draft, type: 'text' | 'address' = 'text') {
-    if (!conv || !text.trim() || sending) return
+    if (!conv || sending) return
+    // A photo or PDF goes out with whatever's typed as its caption.
+    if (type === 'text' && pendingFile) {
+      if (!pendingFile.attachment) return
+      const pf = pendingFile
+      setSending(true)
+      setDraft('')
+      setPendingFile(null)
+      try {
+        await sendMessage(conv, me, text, pf.kind, pf.attachment)
+        if (pf.preview) URL.revokeObjectURL(pf.preview)
+      } catch (e) {
+        console.error('[handoff] send attachment', e)
+        setDraft(text)
+        setPendingFile(pf)
+        toast('Not sent. Check your connection and tap send again.')
+      } finally {
+        setSending(false)
+      }
+      return
+    }
+    if (!text.trim()) return
     setSending(true)
     if (type === 'text') setDraft('')
     try {
@@ -105,6 +142,49 @@ export function Thread({ id }: { id: string }) {
     } finally {
       setSending(false)
     }
+  }
+
+  async function upload(pf: PendingFile) {
+    setPendingFile({ ...pf, failed: false, progress: 0 })
+    try {
+      const attachment = await uploadAttachment(me, conv!.id, pf.file, (p) =>
+        setPendingFile((cur) => (cur?.key === pf.key ? { ...cur, progress: p } : cur)),
+      )
+      setPendingFile((cur) => (cur?.key === pf.key ? { ...cur, attachment, progress: 1 } : cur))
+    } catch (e) {
+      console.error('[handoff] attachment upload', e)
+      if ((e as Error).message === 'too-big') {
+        toast('That PDF is over 10 MB. Try a smaller one.')
+        setPendingFile(null)
+        return
+      }
+      setPendingFile((cur) => (cur?.key === pf.key ? { ...cur, failed: true } : cur))
+    }
+  }
+
+  function pickFile(file: File | undefined) {
+    if (!file) return
+    if (!isAllowedFile(file)) {
+      toast('You can send photos and PDFs.')
+      return
+    }
+    if (pendingFile?.preview) URL.revokeObjectURL(pendingFile.preview)
+    const kind = file.type === 'application/pdf' ? 'file' : 'image'
+    const pf: PendingFile = {
+      key: `${file.name}-${Date.now()}`,
+      name: file.name,
+      kind,
+      preview: kind === 'image' ? URL.createObjectURL(file) : undefined,
+      progress: 0,
+      failed: false,
+      file,
+    }
+    void upload(pf)
+  }
+
+  function clearFile() {
+    if (pendingFile?.preview) URL.revokeObjectURL(pendingFile.preview)
+    setPendingFile(null)
   }
 
   async function prepareAddress() {
@@ -217,7 +297,9 @@ export function Thread({ id }: { id: string }) {
               ) : (
                 <div className={mine ? 'bubble-row mine' : 'bubble-row'}>
                   <div
-                    className={`bubble${mine ? ' mine' : ''}${m.type === 'address' ? ' bubble-address' : ''}`}
+                    className={`bubble${mine ? ' mine' : ''}${m.type === 'address' ? ' bubble-address' : ''}${
+                      m.type === 'image' ? ' bubble-image' : ''
+                    }`}
                     onClick={() => setOpenTime(openTime === m.id ? null : m.id)}
                     title={m.sentAt ? timeFmt.format(m.sentAt) : undefined}
                   >
@@ -237,6 +319,37 @@ export function Thread({ id }: { id: string }) {
                           Open in Maps
                         </a>
                       </>
+                    ) : m.type === 'image' && m.attachment ? (
+                      <>
+                        <a href={m.attachment.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                          <img
+                            src={m.attachment.url}
+                            alt={m.text || `Photo from ${mine ? 'you' : other.firstName}`}
+                            className="chat-photo"
+                            width={m.attachment.width}
+                            height={m.attachment.height}
+                            loading="lazy"
+                          />
+                        </a>
+                        {m.text && <span className="bubble-caption">{m.text}</span>}
+                      </>
+                    ) : m.type === 'file' && m.attachment ? (
+                      <>
+                        <a
+                          className="file-card"
+                          href={m.attachment.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <FileText size={24} strokeWidth={1.5} aria-hidden="true" />
+                          <span className="file-meta">
+                            <span className="file-name">{m.attachment.name}</span>
+                            <span className="caption">PDF · {formatBytes(m.attachment.size)} · Open</span>
+                          </span>
+                        </a>
+                        {m.text && <span className="bubble-caption">{m.text}</span>}
+                      </>
                     ) : (
                       m.text
                     )}
@@ -244,7 +357,7 @@ export function Thread({ id }: { id: string }) {
                   {(openTime === m.id || m.pending) && (
                     <span className="bubble-meta">{m.pending ? 'Sending…' : m.sentAt ? timeFmt.format(m.sentAt) : ''}</span>
                   )}
-                  {!mine && m.type === 'text' && mentionsMoney(m.text) && (
+                  {!mine && m.type !== 'address' && mentionsMoney(m.text) && (
                     <span className="money-note">
                       <Info size={14} strokeWidth={1.5} aria-hidden="true" />
                       Heads up: don't send money before you've seen the place.
@@ -281,7 +394,57 @@ export function Thread({ id }: { id: string }) {
               Share address
             </button>
           )}
+          {pendingFile && (
+            <div className="attach-preview">
+              {pendingFile.preview ? (
+                <img src={pendingFile.preview} alt="" className="attach-thumb" />
+              ) : (
+                <span className="attach-thumb attach-pdf" aria-hidden="true">
+                  <FileText size={22} strokeWidth={1.5} />
+                </span>
+              )}
+              <span className="file-meta">
+                <span className="file-name">{pendingFile.name}</span>
+                <span className="caption muted">
+                  {pendingFile.failed
+                    ? "Didn't upload."
+                    : pendingFile.attachment
+                      ? 'Ready to send. Add a caption if you like.'
+                      : `Uploading… ${Math.round(pendingFile.progress * 100)}%`}
+                </span>
+              </span>
+              {pendingFile.failed && (
+                <button type="button" className="icon-btn" aria-label="Retry upload" onClick={() => void upload(pendingFile)}>
+                  <RotateCw size={18} strokeWidth={1.5} />
+                </button>
+              )}
+              <button type="button" className="icon-btn" aria-label="Remove attachment" onClick={clearFile}>
+                <X size={18} strokeWidth={1.5} />
+              </button>
+            </div>
+          )}
           <div className="composer-row">
+            <button
+              type="button"
+              className="attach-btn"
+              aria-label="Attach a photo or PDF"
+              onClick={() => fileInput.current?.click()}
+              disabled={sending}
+            >
+              <Paperclip size={20} strokeWidth={1.5} />
+            </button>
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*,.heic,application/pdf"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
+              onChange={(e) => {
+                pickFile(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
             <label htmlFor="composer" className="sr-only">
               Message {other.firstName}
             </label>
@@ -291,7 +454,7 @@ export function Thread({ id }: { id: string }) {
               className="composer-input"
               rows={1}
               maxLength={MESSAGE_MAX}
-              placeholder="Message"
+              placeholder={pendingFile ? 'Add a caption' : 'Message'}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
@@ -301,7 +464,12 @@ export function Thread({ id }: { id: string }) {
                 }
               }}
             />
-            <button type="submit" className="send-btn" aria-label="Send" disabled={!draft.trim() || sending}>
+            <button
+              type="submit"
+              className="send-btn"
+              aria-label="Send"
+              disabled={sending || (pendingFile ? !pendingFile.attachment : !draft.trim())}
+            >
               <ArrowUp size={20} strokeWidth={2} />
             </button>
           </div>

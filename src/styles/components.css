@@ -757,3 +757,27 @@ fieldset.chip-field > legend { padding: 0; margin-bottom: 8px; }
   .messages .thread { height: 100%; }
   .thread-head { padding-left: var(--space-4); }
 }
+
+/* ---- Chat attachments ---- */
+.bubble-image { padding: 4px; display: flex; flex-direction: column; gap: 4px; }
+.chat-photo {
+  display: block; width: 100%; max-width: 260px; height: auto; max-height: 340px;
+  object-fit: cover; border-radius: calc(var(--radius-lg) - 4px); background: var(--sage-100);
+}
+.bubble-caption { padding: 4px 10px 6px; }
+.bubble.mine .file-card { color: var(--on-primary); }
+.file-card { display: flex; align-items: center; gap: 10px; min-width: 200px; text-decoration: none; }
+.file-card > svg { flex: none; }
+.file-meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.file-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.attach-btn {
+  display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: 50%;
+  color: var(--ink);
+}
+.attach-btn:hover { background: var(--sage-100); }
+.attach-preview {
+  display: flex; align-items: center; gap: 10px; padding: 8px 4px 8px 8px;
+  border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface);
+}
+.attach-thumb { width: 48px; height: 48px; flex: none; border-radius: 8px; object-fit: cover; }
+.attach-pdf { display: grid; place-items: center; background: var(--sage-100); color: var(--forest-600); }
