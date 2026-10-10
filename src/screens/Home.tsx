@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { DollarSign, MessageCircle, PencilLine, ShieldCheck, Handshake } from 'lucide-react'
+import { ArrowRight, Check, ChevronRight, DollarSign, Handshake, KeyRound, MessageCircle, PencilLine, ShieldCheck } from 'lucide-react'
 import { ListingCard } from '../components/ListingCard'
 import { DateInput } from '../components/DateInput'
 import { readLastSearch, saveLastSearch } from '../lib/lastSearch'
 import { Footer } from '../components/Shell'
 import { useActiveListings } from '../lib/useListings'
 import { useAuth } from '../components/AuthProvider'
+import { maskBlockedLanguage } from '../lib/moderation'
 
 type PlaceType = 'any' | 'room' | 'whole'
 
@@ -26,7 +27,7 @@ export default function Home() {
   const [max, setMax] = useState(last.max ?? '')
   const [type, setType] = useState<PlaceType>((last.type as PlaceType) ?? 'any')
 
-  const { listings } = useActiveListings()
+  const { listings, loading } = useActiveListings()
   const { rawUser } = useAuth()
   const newest = (listings ?? []).slice(0, 8)
   const mine = rawUser ? (listings ?? []).find((l) => l.ownerId === rawUser.uid) : undefined
@@ -47,8 +48,18 @@ export default function Home() {
       <div className="home-top">
         <section className="hero">
           <p className="eyebrow">Subleases near campus</p>
-          <h1 className="display">A little less rent. A lot more possibility.</h1>
+          <h1 className="display hero-title">
+            <span>A little less rent.</span> <span>A lot more possibility.</span>
+          </h1>
           <p className="lead">Find a room for a semester, or hand off your lease to another student.</p>
+          <ul className="hero-points" aria-label="Why Handoff">
+            {['Free to post', 'Verified students only', 'No fees to message'].map((t) => (
+              <li key={t}>
+                <Check size={16} strokeWidth={2} aria-hidden="true" />
+                {t}
+              </li>
+            ))}
+          </ul>
         </section>
 
         <form className="card search-card" onSubmit={findPlace} aria-label="Find a place">
@@ -104,70 +115,94 @@ export default function Home() {
       </div>
 
       {mine && (
-        <Link to={`/listings/${mine.id}`} className="mine-row">
-          <span className="caption muted">Your place</span>
-          <span className="card-title">{mine.title}</span>
+        <Link to="/me/listings" className="mine-row">
+          <span className="mine-text">
+            <span className="caption muted">Your place{mine.neighborhood ? ` in ${mine.neighborhood}` : ''}</span>
+            <span className="card-title">{maskBlockedLanguage(mine.title)}</span>
+          </span>
+          <ChevronRight size={20} strokeWidth={1.5} aria-hidden="true" />
         </Link>
       )}
 
-      <section className="lister-card">
-        <h2 className="heading">Leaving for the summer or a semester?</h2>
-        <p>Posting is free and takes about 5 minutes.</p>
+      <section className="lister-card" aria-labelledby="lister-heading">
+        <span className="lister-icon" aria-hidden="true">
+          <KeyRound size={22} strokeWidth={1.5} />
+        </span>
+        <div className="lister-text">
+          <h2 className="heading" id="lister-heading">
+            Leaving for the summer or a semester?
+          </h2>
+          <p>Hand off your lease to another student. Posting is free and takes about 5 minutes.</p>
+        </div>
         <Link to="/post" className="btn btn-secondary">
           Post your place
+          <ArrowRight size={18} strokeWidth={2} aria-hidden="true" />
         </Link>
       </section>
 
+      {loading && (
+        <section className="section" aria-busy="true" aria-label="Loading listings">
+          <div className="section-head">
+            <h2 className="heading">Just posted</h2>
+          </div>
+          <div className="strip">
+            {[0, 1, 2, 3].map((i) => (
+              <div className="strip-item" key={i}>
+                <div className="skeleton-card" />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {newest.length > 0 && (
-      <section className="section">
-        <div className="section-head">
-          <h2 className="heading">Just posted</h2>
-          <Link to="/listings?sort=newest" className="text-link">
-            See all
-          </Link>
-        </div>
-        <div className="strip">
-          {newest.map((l) => (
-            <div className="strip-item" key={l.id}>
-              <ListingCard listing={l} />
-            </div>
-          ))}
-          {newest.length < 4 && (
-            <div className="strip-item">
-              <Link to="/post" className="first-card">
-                <span className="heading">Be one of the first to post</span>
-                <span className="btn btn-secondary btn-sm">Post your place</span>
-              </Link>
-            </div>
-          )}
-        </div>
-      </section>
+        <section className="section">
+          <div className="section-head">
+            <h2 className="heading">Just posted</h2>
+            <Link to="/listings?sort=newest" className="text-link">
+              See all
+            </Link>
+          </div>
+          <div className="strip">
+            {newest.map((l) => (
+              <div className="strip-item" key={l.id}>
+                <ListingCard listing={l} />
+              </div>
+            ))}
+            {newest.length < 4 && (
+              <div className="strip-item">
+                <Link to="/post" className="first-card">
+                  <span className="heading">Be one of the first to post</span>
+                  <span className="muted">It’s free and takes about 5 minutes.</span>
+                  <span className="btn btn-secondary btn-sm">Post your place</span>
+                </Link>
+              </div>
+            )}
+          </div>
+        </section>
       )}
 
       <section className="section">
         <h2 className="heading">How it works</h2>
         <ol className="how">
-          <li>
-            <PencilLine size={24} strokeWidth={1.5} aria-hidden="true" />
-            <div>
-              <p className="how-title">Post for free</p>
-              <p className="muted">Rooms and whole-place lease takeovers, in about 5 minutes.</p>
-            </div>
-          </li>
-          <li>
-            <MessageCircle size={24} strokeWidth={1.5} aria-hidden="true" />
-            <div>
-              <p className="how-title">Chat with verified students</p>
-              <p className="muted">Only students with a verified school email can message you.</p>
-            </div>
-          </li>
-          <li>
-            <Handshake size={24} strokeWidth={1.5} aria-hidden="true" />
-            <div>
-              <p className="how-title">Hand it off</p>
-              <p className="muted">Sort out the lease with your landlord, then mark it filled.</p>
-            </div>
-          </li>
+          {(
+            [
+              [PencilLine, 'Post for free', 'Rooms and whole-place lease takeovers, in about 5 minutes.'],
+              [MessageCircle, 'Chat with verified students', 'Only students with a verified school email can message you.'],
+              [Handshake, 'Hand it off', 'Sort out the lease with your landlord, then mark it filled.'],
+            ] as const
+          ).map(([Icon, title, body], i) => (
+            <li key={title}>
+              <span className="how-icon" aria-hidden="true">
+                <Icon size={22} strokeWidth={1.5} />
+                <span className="how-num">{i + 1}</span>
+              </span>
+              <div>
+                <p className="how-title">{title}</p>
+                <p className="muted">{body}</p>
+              </div>
+            </li>
+          ))}
         </ol>
       </section>
 
