@@ -83,6 +83,8 @@
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field > label, .field > .label { font: 500 13px/18px var(--font-body); }
 .input {
+  /* 16px stops iOS from zooming into a field when it's tapped. */
+  font-size: 16px;
   width: 100%; min-height: 48px;
   padding: 0 var(--space-4);
   background: var(--sage-100); color: var(--ink);
@@ -101,8 +103,27 @@
 .input-icon { position: relative; display: block; flex: 1; min-width: 0; }
 .input-icon > svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
 .input-icon .input { padding-left: 40px; }
-.date-pair { display: flex; gap: var(--space-2); }
-.date-pair .input { padding-right: 8px; font-size: 13px; }
+.date-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+
+/* Date fields: iOS Safari gives date inputs their own intrinsic width and
+   centered text, which squashes and overflows them. Reset that. */
+input[type='date'].input {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  width: 100%;
+  line-height: 44px;
+  padding-right: 10px;
+  text-align: left;
+}
+input[type='date'].input::-webkit-date-and-time-value { text-align: left; margin: 0; }
+/* Our icon replaces the browser's; the whole field opens the picker. */
+input[type='date'].input::-webkit-calendar-picker-indicator { display: none; }
+.date-wrap input[type='date'].input { padding-left: 40px; cursor: pointer; }
+.date-placeholder { display: none; position: absolute; left: 40px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 16px; pointer-events: none; }
+/* iOS Safari only: it leaves empty date fields blank, so show the placeholder. */
+@supports (-webkit-touch-callout: none) { .date-placeholder { display: block; } }
 .helper { font: 400 12px/16px var(--font-body); color: var(--muted); }
 .helper-link { align-self: flex-start; font-size: 12px; min-height: 32px; }
 
@@ -229,7 +250,7 @@
   min-height: 36px; padding: 0 30px 0 14px;
   border: 1px solid var(--line); border-radius: var(--radius-pill);
   background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236B7169' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center;
-  font: 500 13px/18px var(--font-body);
+  font: 500 16px/20px var(--font-body); /* 16px: no zoom on iOS */
 }
 .results-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
 .end-line { text-align: center; padding: var(--space-6) 0; }

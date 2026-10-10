@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { CalendarDays, DollarSign, MessageCircle, PencilLine, ShieldCheck, Handshake } from 'lucide-react'
+import { DollarSign, MessageCircle, PencilLine, ShieldCheck, Handshake } from 'lucide-react'
 import { ListingCard } from '../components/ListingCard'
+import { DateInput } from '../components/DateInput'
 import { Footer } from '../components/Shell'
 import { useActiveListings } from '../lib/useListings'
 import { useAuth } from '../components/AuthProvider'
@@ -45,16 +46,8 @@ export default function Home() {
               Dates
             </span>
             <div className="date-pair" role="group" aria-labelledby="dates-label">
-              <label className="input-icon">
-                <CalendarDays size={18} strokeWidth={1.5} aria-hidden="true" />
-                <span className="sr-only">Move in</span>
-                <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
-              </label>
-              <label className="input-icon">
-                <CalendarDays size={18} strokeWidth={1.5} aria-hidden="true" />
-                <span className="sr-only">Move out</span>
-                <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} />
-              </label>
+              <DateInput label="Move in" value={from} onChange={setFrom} />
+              <DateInput label="Move out" value={to} min={from || undefined} onChange={setTo} />
             </div>
           </div>
           <div className="field">

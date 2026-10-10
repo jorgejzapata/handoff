@@ -94,12 +94,14 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
   const [busy, setBusy] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const titleId = useId()
-  const firstField = useRef<HTMLInputElement>(null)
+  // Focus the sheet itself, not a field, so the keyboard doesn't pop up until
+  // the student taps a field. Screen readers still land inside the dialog.
+  const sheetRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const toast = useToast()
 
   useEffect(() => {
-    firstField.current?.focus()
+    sheetRef.current?.focus({ preventScroll: true })
   }, [mode])
 
   useEffect(() => {
@@ -190,6 +192,8 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
     <div className="scrim" onClick={() => !busy && onClose()}>
       <div
         className="sheet"
+        ref={sheetRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -214,7 +218,6 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
               <Field id="su-name" label="First name" error={fieldError('name')}>
                 <input
                   id="su-name"
-                  ref={firstField}
                   className="input"
                   autoComplete="given-name"
                   value={firstName}
@@ -227,7 +230,6 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
             <Field id="su-email" label="CSU email" error={fieldError('email')}>
               <input
                 id="su-email"
-                ref={mode === 'signup' ? undefined : firstField}
                 className="input"
                 type="email"
                 inputMode="email"

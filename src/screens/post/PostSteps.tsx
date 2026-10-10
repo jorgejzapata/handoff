@@ -20,6 +20,7 @@ import type { LandlordStatus, ListingDraft, Photo } from '../../lib/listings'
 import { approximate, distanceToCampusMi, searchAddress } from '../../lib/geo'
 import type { AddressResult } from '../../lib/geo'
 import { deleteListingPhoto, uploadListingPhoto } from '../../lib/photos'
+import { DateInput } from '../../components/DateInput'
 
 interface StepProps {
   draft: ListingDraft
@@ -187,26 +188,18 @@ export function StepRentDates({ draft, update }: StepProps) {
       <div className="field">
         <span className="label">Dates</span>
         <div className="date-pair">
-          <label className="date-field">
-            <span className="caption muted">Move in</span>
-            <input
-              type="date"
-              className="input"
-              min={today}
-              value={draft.availableFrom ?? ''}
-              onChange={(e) => update({ availableFrom: e.target.value })}
-            />
-          </label>
-          <label className="date-field">
-            <span className="caption muted">Move out</span>
-            <input
-              type="date"
-              className="input"
-              min={draft.availableFrom || today}
-              value={draft.availableTo ?? ''}
-              onChange={(e) => update({ availableTo: e.target.value })}
-            />
-          </label>
+          <DateInput
+            label="Move in"
+            value={draft.availableFrom ?? ''}
+            min={today}
+            onChange={(v) => update({ availableFrom: v })}
+          />
+          <DateInput
+            label="Move out"
+            value={draft.availableTo ?? ''}
+            min={draft.availableFrom || today}
+            onChange={(v) => update({ availableTo: v })}
+          />
         </div>
         {dateError && (
           <p className="field-msg" role="alert">
