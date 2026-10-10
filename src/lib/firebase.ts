@@ -1,5 +1,11 @@
 import { initializeApp } from 'firebase/app'
-import { connectAuthEmulator, getAuth } from 'firebase/auth'
+import {
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  connectAuthEmulator,
+  indexedDBLocalPersistence,
+  initializeAuth,
+} from 'firebase/auth'
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
 import { connectStorageEmulator, getStorage } from 'firebase/storage'
 import { getAnalytics, isSupported, setAnalyticsCollectionEnabled } from 'firebase/analytics'
@@ -18,7 +24,12 @@ const firebaseConfig = {
 }
 
 export const app = initializeApp(firebaseConfig)
-export const auth = getAuth(app)
+// Stay signed in until you log out: the session lives in IndexedDB (or
+// localStorage as a fallback) and refreshes itself, with no time limit.
+export const auth = initializeAuth(app, {
+  persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+  popupRedirectResolver: browserPopupRedirectResolver,
+})
 export const db = getFirestore(app)
 export const storage = getStorage(app)
 

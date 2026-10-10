@@ -266,7 +266,7 @@ export function Overview({ data, views7d, onOpenReports }: { data: Data; views7d
         <Tile label="Active listings" value={String(m.activeListings)} goal={`Goal: ${GOALS.activeListings}+ → expand campuses`} sub={`${m.newListingsThisWeek} new this week · ${delta(m.newListingsThisWeek, m.newListingsLastWeek)}`} met={m.activeListings >= GOALS.activeListings} />
         <Tile label="Listings filled" value={`${m.filledPct}%`} goal={`Goal: ${GOALS.filledPct}%+ → pitch property managers`} sub={`${m.filled} of ${m.published} published`} met={m.published >= 10 && m.filledPct >= GOALS.filledPct} />
         <Tile label="Filled through Handoff" value={m.filled ? `${m.filledViaPct}%` : '–'} goal='Lister answered "On Handoff"' sub={m.filled ? `of ${m.filled} filled` : 'No fills yet'} />
-        <Tile label="Boost conversion" value="–" goal={`Goal: ${GOALS.boostConversionPct}%+ of listings`} sub={boostsOn ? 'Boosts not built yet' : 'Boosts locked until 25 live'} />
+        <Tile label="Boost conversion" value="–" goal={`Goal: ${GOALS.boostConversionPct}%+ of listings`} sub={boostsOn ? 'Boosts not built yet' : `Boosts locked until ${GOALS.boostGate} live`} />
         <Tile label="Revenue per listing" value="$0" goal="Goal: rising month over month" sub="Starts with boosts" />
         <Tile label="Reports this week" value={String(m.reportsThisWeek)} goal="Spikes flag a trust problem" sub={`${m.openReports} open · ${delta(m.reportsThisWeek, m.reportsLastWeek)}`} warn={m.reportsThisWeek > Math.max(3, m.reportsLastWeek * 2)} onClick={m.openReports ? onOpenReports : undefined} />
         <Tile label="Students" value={String(m.students)} goal="Signed up" sub={`${m.newStudentsThisWeek} new this week`} />

@@ -98,7 +98,7 @@ export async function fetchViews7d() {
 
 // ---- Metrics for the phase triggers in the monetization brief ----
 
-export const GOALS = { activeListings: 50, filledPct: 30, boostConversionPct: 5, boostGate: 25 }
+export const GOALS = { activeListings: 50, filledPct: 30, boostConversionPct: 5, boostGate: 15 }
 
 const DAY = 24 * 60 * 60 * 1000
 
