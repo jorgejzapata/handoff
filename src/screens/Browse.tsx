@@ -10,6 +10,8 @@ import type { Listing } from '../lib/listings'
 import { formatDates } from '../lib/format'
 import { useActiveListings } from '../lib/useListings'
 import { saveLastSearch } from '../lib/lastSearch'
+import { GROUPS, openToGroup, useMyGroup } from '../lib/gender'
+import type { Group } from '../lib/gender'
 
 type Sort = 'recommended' | 'newest' | 'price-asc' | 'price-desc'
 
@@ -35,6 +37,9 @@ export default function Browse() {
   const max = params.get('max') ? Number(params.get('max')) : undefined
   const type = params.get('type') ?? 'any'
   const furnished = params.get('furnished') === '1'
+  const forParam = params.get('for')
+  const forGroup = GROUPS.some(([g]) => g === forParam) ? (forParam as Group) : undefined
+  const myGroup = useMyGroup()
   const sort = (params.get('sort') as Sort) ?? 'recommended'
   const mapView = params.get('view') === 'map'
   const [selectedPin, setSelectedPin] = useState<string | null>(null)
@@ -58,6 +63,7 @@ export default function Browse() {
       if (type === 'room' && l.listingType !== 'room') return false
       if (type === 'whole' && l.listingType !== 'takeover') return false
       if (furnished && !l.furnished) return false
+      if (forGroup && !openToGroup(l.openTo, forGroup)) return false
       // Any overlap with the seeker's dates counts; partial matches get a note.
       if (from && l.availableTo < from) return false
       if (to && l.availableFrom > to) return false
@@ -70,10 +76,25 @@ export default function Browse() {
     if (sort === 'recommended')
       sorted.sort((a, b) => Number(b.boosted) - Number(a.boosted) || b.postedAt.localeCompare(a.postedAt))
     return sorted
-  }, [listings, from, to, max, type, furnished, sort])
+  }, [listings, from, to, max, type, furnished, forGroup, sort])
 
   const typeLabel = type === 'room' ? 'Room' : type === 'whole' ? 'Whole place' : 'Type'
-  const anyFilter = from || to || max || type !== 'any' || furnished
+  const anyFilter = from || to || max || type !== 'any' || furnished || forGroup
+
+  // With a gender on their profile, one tap: "Open to me". Otherwise the chip
+  // cycles through the groups.
+  const forLabel = !forGroup
+    ? myGroup
+      ? 'Open to me'
+      : 'Open to'
+    : forGroup === myGroup
+      ? 'Open to me'
+      : `Open to ${GROUPS.find(([g]) => g === forGroup)![1].toLowerCase()}`
+  function cycleFor() {
+    if (myGroup) return update('for', forGroup ? null : myGroup)
+    const i = GROUPS.findIndex(([g]) => g === forGroup)
+    update('for', i === GROUPS.length - 1 ? null : GROUPS[i + 1][0])
+  }
 
   return (
     <div className="page browse">
@@ -90,6 +111,7 @@ export default function Browse() {
           onClick={() => update('type', type === 'any' ? 'room' : type === 'room' ? 'whole' : null)}
         />
         <Chip on={furnished} label="Furnished" onClick={() => update('furnished', furnished ? null : '1')} />
+        <Chip on={!!forGroup} label={forLabel} onClick={cycleFor} />
         <Chip on={false} label="More" />
       </div>
 

@@ -6,6 +6,8 @@ export interface Profile {
   photoUrl?: string
   gradYear?: string
   bio?: string
+  gender?: 'woman' | 'man' | 'nonbinary' | 'self'
+  genderSelfDescribe?: string
   onboardingStep?: string
 }
 
@@ -20,6 +22,7 @@ export async function fetchProfile(uid: string): Promise<Profile | null> {
   }
 }
 
-export async function saveProfile(uid: string, changes: Partial<Profile>) {
+// Pass deleteField() to clear a field.
+export async function saveProfile(uid: string, changes: Partial<Record<keyof Profile, unknown>>) {
   await updateDoc(doc(db, 'users', uid), { ...changes, lastActiveAt: serverTimestamp() })
 }

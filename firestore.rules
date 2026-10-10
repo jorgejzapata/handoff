@@ -56,7 +56,12 @@ service cloud.firestore {
       // status (set by Cloud Functions on suspension) are off limits.
       allow update: if isOwner(uid)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
-             ['firstName', 'photoUrl', 'gradYear', 'bio', 'notificationPrefs', 'onboardingStep', 'lastActiveAt'])
+             ['firstName', 'photoUrl', 'gradYear', 'bio', 'gender', 'genderSelfDescribe',
+              'notificationPrefs', 'onboardingStep', 'lastActiveAt'])
+        && (!('gender' in request.resource.data)
+            || request.resource.data.gender in ['woman', 'man', 'nonbinary', 'self'])
+        && (!('genderSelfDescribe' in request.resource.data)
+            || isShortString(request.resource.data.genderSelfDescribe, 1, 30))
         && (!('firstName' in request.resource.data) || isShortString(request.resource.data.firstName, 1, 40))
         && (!('bio' in request.resource.data) || isShortString(request.resource.data.bio, 0, 140))
         && (!('photoUrl' in request.resource.data) || isShortString(request.resource.data.photoUrl, 1, 1000))
@@ -74,10 +79,19 @@ service cloud.firestore {
 
     function listingContentKeys() {
       return ['listingType', 'roomType', 'bedrooms', 'bathrooms', 'privateBath', 'roommateCount',
-        'furnished', 'rentCents', 'utilitiesIncluded', 'utilitiesEstimateCents', 'depositNote',
+        'householdGenders', 'openTo', 'furnished', 'rentCents', 'utilitiesIncluded', 'utilitiesEstimateCents', 'depositNote',
         'availableFrom', 'availableTo', 'datesFlexible', 'neighborhood', 'approxLat', 'approxLng',
         'distanceToCampusMi', 'amenities', 'title', 'description', 'photos', 'landlordStatus',
         'leaseAckAt', 'listerFirstName', 'listerPhotoUrl', 'listerYear', 'listerSince'];
+    }
+
+    // Who lives there / who can move in. Roommate preferences are only for
+    // rooms in a shared place, never a whole-unit takeover.
+    function validGroups(d, groups) {
+      return groups is list
+        && groups.size() <= 3
+        && groups.hasOnly(['women', 'men', 'nonbinary'])
+        && (groups.size() == 0 || d.get('listingType', 'room') == 'room');
     }
 
     function validListingContent(d) {
@@ -87,6 +101,8 @@ service cloud.firestore {
         && (!('bathrooms' in d) || (d.bathrooms is number && d.bathrooms >= 0 && d.bathrooms <= 10))
         && (!('privateBath' in d) || d.privateBath is bool)
         && (!('roommateCount' in d) || (d.roommateCount is int && d.roommateCount >= 0 && d.roommateCount <= 10))
+        && (!('householdGenders' in d) || validGroups(d, d.householdGenders))
+        && (!('openTo' in d) || validGroups(d, d.openTo))
         && (!('furnished' in d) || d.furnished is bool)
         && (!('rentCents' in d) || (d.rentCents is int && d.rentCents >= 10000 && d.rentCents <= 500000))
         && (!('utilitiesIncluded' in d) || d.utilitiesIncluded is bool)

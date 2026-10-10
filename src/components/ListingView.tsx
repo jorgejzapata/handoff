@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { Bath, BedDouble, BadgeCheck, CircleCheck, CircleHelp, Clock, ImageIcon, Info, Sofa, Zap } from 'lucide-react'
+import { Bath, BedDouble, BadgeCheck, CircleCheck, CircleHelp, Clock, ImageIcon, Info, Sofa, Users, Zap } from 'lucide-react'
 import type { Listing } from '../lib/listings'
+import { householdLabel, openToLabel } from '../lib/gender'
 import { AREA_RADIUS_M, LazyMap } from './map/LazyMap'
 import {
   distanceLabel,
@@ -115,9 +116,13 @@ export function ListingView({
           <section className="detail-block">
             <h2 className="heading">Details</h2>
             {listing.listingType === 'room' && (
-              <p>
-                {listing.roommateCount} {listing.roommateCount === 1 ? 'roommate' : 'roommates'}
-              </p>
+              <>
+                <p>{householdLabel(listing.roommateCount, listing.householdGenders)}</p>
+                <p className="open-to-line">
+                  <Users size={18} strokeWidth={1.5} aria-hidden="true" />
+                  {openToLabel(listing.openTo)}
+                </p>
+              </>
             )}
             {listing.amenities.length > 0 && (
               <div className="chips-wrap">

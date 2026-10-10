@@ -3,6 +3,7 @@ import { Heart, ImageIcon } from 'lucide-react'
 import type { Listing } from '../lib/listings'
 import { distanceLabel, formatDates, formatRent, typeLine } from '../lib/format'
 import { useSignUp } from './SignUpSheet'
+import { isOpenToAnyone, openToLabel } from '../lib/gender'
 
 export function ListingPhoto({ listing, className = '' }: { listing: Listing; className?: string }) {
   const photo = listing.photos[0]
@@ -72,6 +73,7 @@ export function ListingCard({ listing, note }: { listing: Listing; note?: string
         <p className="card-title">{listing.title}</p>
         <p>{typeLine(listing)}</p>
         <p>{formatDates(listing.availableFrom, listing.availableTo)}</p>
+        {!isOpenToAnyone(listing.openTo) && <p className="open-to-tag">{openToLabel(listing.openTo)}</p>}
         {note && <p className="caption muted">{note}</p>}
         <p className="muted">{distanceLabel(listing.distanceToCampusMi)}</p>
       </div>

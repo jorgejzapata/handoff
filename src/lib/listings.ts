@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore'
 import type { DocumentData, DocumentSnapshot } from 'firebase/firestore'
 import { db } from './firebase'
+import type { Group } from './gender'
 
 // ---- Model ----
 // Field names follow the listings collection in the MVP Product Spec.
@@ -53,6 +54,8 @@ export interface Listing {
   bathrooms: number
   privateBath: boolean
   roommateCount: number
+  householdGenders: Group[] // who lives there now (rooms only)
+  openTo: Group[] // who can move in; empty = anyone (rooms only)
   furnished: boolean
   rentCents: number
   utilitiesIncluded: boolean
@@ -89,6 +92,8 @@ export interface ListingDraft {
   bathrooms?: number
   privateBath?: boolean
   roommateCount?: number
+  householdGenders?: Group[]
+  openTo?: Group[]
   furnished?: boolean
   rentCents?: number
   utilitiesIncluded?: boolean
@@ -188,8 +193,8 @@ export function draftToFirestore(d: ListingDraft): DocumentData {
 export function firestoreToDraft(data: DocumentData): ListingDraft {
   const d: ListingDraft = {}
   const copy = [
-    'listingType', 'roomType', 'bedrooms', 'bathrooms', 'privateBath', 'roommateCount', 'furnished',
-    'rentCents', 'utilitiesIncluded', 'utilitiesEstimateCents', 'depositNote', 'datesFlexible',
+    'listingType', 'roomType', 'bedrooms', 'bathrooms', 'privateBath', 'roommateCount', 'householdGenders', 'openTo',
+    'furnished', 'rentCents', 'utilitiesIncluded', 'utilitiesEstimateCents', 'depositNote', 'datesFlexible',
     'neighborhood', 'approxLat', 'approxLng', 'distanceToCampusMi', 'amenities', 'title',
     'description', 'photos', 'landlordStatus',
   ] as const
@@ -214,6 +219,8 @@ export function snapshotToListing(snap: DocumentSnapshot): Listing | null {
     bathrooms: d.bathrooms ?? 1,
     privateBath: !!d.privateBath,
     roommateCount: d.roommateCount ?? 0,
+    householdGenders: d.listingType === 'takeover' ? [] : (d.householdGenders ?? []),
+    openTo: d.listingType === 'takeover' ? [] : (d.openTo ?? []),
     furnished: !!d.furnished,
     rentCents: d.rentCents ?? 0,
     utilitiesIncluded: !!d.utilitiesIncluded,
@@ -261,6 +268,8 @@ export function draftToPreview(d: ListingDraft, lister: Lister, id = 'preview'):
     bathrooms: d.bathrooms ?? 1,
     privateBath: !!d.privateBath,
     roommateCount: d.roommateCount ?? 0,
+    householdGenders: isRoom ? (d.householdGenders ?? []) : [],
+    openTo: isRoom ? (d.openTo ?? []) : [],
     furnished: !!d.furnished,
     rentCents: d.rentCents ?? 0,
     utilitiesIncluded: !!d.utilitiesIncluded,

@@ -9,6 +9,7 @@ import type { Listing } from '../lib/listings'
 import { MESSAGE_MAX, startConversation } from '../lib/messages'
 import { formatDates } from '../lib/format'
 import { readLastSearch } from '../lib/lastSearch'
+import { openToGroup, openToLabel, useMyGroup } from '../lib/gender'
 
 const QUICK = ['Can I see it this week?', 'Are utilities included?', 'Is the landlord OK with a sublease?']
 
@@ -30,6 +31,8 @@ export function SayHiSheet({ listing, onClose }: { listing: Listing; onClose: ()
   const [text, setText] = useState(() => openingLine(listing))
   const [sending, setSending] = useState(false)
   const name = listing.lister.firstName
+  const myGroup = useMyGroup()
+  const notForMe = !!myGroup && !openToGroup(listing.openTo, myGroup)
 
   function toggleQuick(q: string) {
     setText((t) => (t.includes(q) ? t.replace(`\n${q}`, '').replace(q, '').trim() : `${t.trim()}\n${q}`))
@@ -56,6 +59,11 @@ export function SayHiSheet({ listing, onClose }: { listing: Listing; onClose: ()
 
   return (
     <Sheet title={`Say hi to ${name}`} onClose={onClose} busy={sending}>
+      {notForMe && (
+        <p className="caption muted">
+          {name} listed this as {openToLabel(listing.openTo).toLowerCase()}. You can still say hi.
+        </p>
+      )}
       <div className="field">
         <label htmlFor="sayhi-text" className="sr-only">
           Your message

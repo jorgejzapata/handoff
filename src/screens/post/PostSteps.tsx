@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import { AMENITIES, LIMITS, savePrivateLocation, fetchPrivateLocation } from '../../lib/listings'
 import type { LandlordStatus, ListingDraft, Photo } from '../../lib/listings'
+import { GROUPS } from '../../lib/gender'
+import type { Group } from '../../lib/gender'
 import { approximate, distanceToCampusMi, searchAddress } from '../../lib/geo'
 import type { AddressResult } from '../../lib/geo'
 import { deleteListingPhoto, uploadListingPhoto } from '../../lib/photos'
@@ -64,7 +66,12 @@ export function stepValid(step: number, d: ListingDraft) {
 // ---- Step 1: What are you offering? ----
 export function StepOffering({ draft, update }: StepProps) {
   const pick = (listingType: 'room' | 'takeover') =>
-    update({ listingType, roomType: listingType === 'room' ? 'private' : 'whole' })
+    update({
+      listingType,
+      roomType: listingType === 'room' ? 'private' : 'whole',
+      // Roommate preferences only apply to shared places.
+      ...(listingType === 'takeover' ? { openTo: [], householdGenders: [] } : {}),
+    })
   return (
     <div className="choice-list" role="radiogroup" aria-label="What are you offering?">
       <Choice
@@ -270,6 +277,20 @@ export function StepPlace({ draft, update }: StepProps) {
               </SelectChip>
             ))}
           </ChipGroup>
+          {(draft.roommateCount ?? 0) > 0 && (
+            <ChipGroup label="Who lives there now (optional)">
+              {GROUPS.map(([g, label]) => {
+                const list = draft.householdGenders ?? []
+                const on = list.includes(g)
+                return (
+                  <SelectChip key={g} on={on} onClick={() => update({ householdGenders: toggle(list, g) })}>
+                    {label}
+                  </SelectChip>
+                )
+              })}
+            </ChipGroup>
+          )}
+          <OpenTo value={draft.openTo ?? []} onChange={(openTo) => update({ openTo })} />
         </>
       )}
 
@@ -330,6 +351,34 @@ export function StepPlace({ draft, update }: StepProps) {
         />
       </Field>
     </div>
+  )
+}
+
+function toggle(list: Group[], g: Group) {
+  return list.includes(g) ? list.filter((x) => x !== g) : [...list, g]
+}
+
+// Who's welcome to move in. Nothing picked means anyone.
+function OpenTo({ value, onChange }: { value: Group[]; onChange: (v: Group[]) => void }) {
+  const anyone = value.length === 0
+  return (
+    <ChipGroup label="Who can move in" helper="Women and men include trans and cis people. Pick more than one if you like.">
+      <SelectChip on={anyone} onClick={() => onChange([])}>
+        Anyone
+      </SelectChip>
+      {GROUPS.map(([g, label]) => (
+        <SelectChip
+          key={g}
+          on={value.includes(g)}
+          onClick={() => {
+            const next = toggle(value, g)
+            onChange(next.length === GROUPS.length ? [] : next)
+          }}
+        >
+          {label}
+        </SelectChip>
+      ))}
+    </ChipGroup>
   )
 }
 
@@ -749,11 +798,12 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   )
 }
 
-function ChipGroup({ label, children }: { label: string; children: ReactNode }) {
+function ChipGroup({ label, helper, children }: { label: string; helper?: string; children: ReactNode }) {
   return (
     <fieldset className="field chip-field">
       <legend className="label">{label}</legend>
       <div className="chips-wrap">{children}</div>
+      {helper && <p className="helper">{helper}</p>}
     </fieldset>
   )
 }

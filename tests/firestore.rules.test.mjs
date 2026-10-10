@@ -106,6 +106,15 @@ describe('users/{uid}', () => {
       await assertSucceeds(updateDoc(doc(db, 'users/maya'), { bio: 'Ag business junior, quiet, early riser', gradYear: 'Junior' }))
     })
 
+    test('gender is optional, from a fixed list, with a short self-description', async () => {
+      const db = env.authenticatedContext('maya', maya).firestore()
+      const ref = doc(db, 'users/maya')
+      await assertSucceeds(updateDoc(ref, { gender: 'nonbinary' }))
+      await assertSucceeds(updateDoc(ref, { gender: 'self', genderSelfDescribe: 'Genderfluid' }))
+      await assertFails(updateDoc(ref, { gender: 'robot' }))
+      await assertFails(updateDoc(ref, { genderSelfDescribe: 'x'.repeat(31) }))
+    })
+
     test('bio is capped at 140 characters', async () => {
       const db = env.authenticatedContext('maya', maya).firestore()
       await assertFails(updateDoc(doc(db, 'users/maya'), { bio: 'x'.repeat(141) }))
@@ -209,6 +218,21 @@ describe('listings: drafts', () => {
     await assertFails(updateDoc(ref, { rentCents: 5000, updatedAt: serverTimestamp() })) // under $100
     await assertFails(updateDoc(ref, { title: 'x'.repeat(61), updatedAt: serverTimestamp() }))
     await assertFails(updateDoc(ref, { listingType: 'mansion', updatedAt: serverTimestamp() }))
+  })
+
+  test('rooms can say who lives there and who can move in; whole places cannot', async () => {
+    await seedListing('l1', { ...newDraft('maya'), createdAt: Timestamp.now(), updatedAt: Timestamp.now() })
+    await seedListing('l2', { ...newDraft('maya', { listingType: 'takeover' }), createdAt: Timestamp.now(), updatedAt: Timestamp.now() })
+    const db = env.authenticatedContext('maya', unverifiedMaya).firestore()
+    const room = doc(db, 'listings/l1')
+    await assertSucceeds(updateDoc(room, { householdGenders: ['men'], openTo: ['men'], updatedAt: serverTimestamp() }))
+    await assertSucceeds(updateDoc(room, { openTo: ['women', 'nonbinary'], updatedAt: serverTimestamp() }))
+    await assertSucceeds(updateDoc(room, { openTo: [], updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(room, { openTo: ['guys'], updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(room, { openTo: 'men', updatedAt: serverTimestamp() }))
+    const whole = doc(db, 'listings/l2')
+    await assertFails(updateDoc(whole, { openTo: ['men'], updatedAt: serverTimestamp() }))
+    await assertSucceeds(updateDoc(whole, { openTo: [], updatedAt: serverTimestamp() }))
   })
 
   test("others can't read or edit someone's draft", async () => {

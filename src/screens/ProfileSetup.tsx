@@ -2,11 +2,14 @@ import { useEffect, useId, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { Camera, Check } from 'lucide-react'
 import { updateProfile } from 'firebase/auth'
+import { deleteField } from 'firebase/firestore'
 import { useAuth } from '../components/AuthProvider'
 import { useToast } from '../components/Toast'
 import { uploadAvatar } from '../lib/photos'
 import { fetchProfile, saveProfile, YEARS } from '../lib/users'
 import { updateListerOnListings } from '../lib/listings'
+import { GENDERS, GENDER_SELF_MAX, invalidateMyGroup } from '../lib/gender'
+import type { Gender } from '../lib/gender'
 
 // "Add a face to your name". Shown once, after a first listing goes live
 // (and later after a first message). Every field is optional.
@@ -21,6 +24,8 @@ export default function ProfileSetup() {
   const [photoUrl, setPhotoUrl] = useState<string | undefined>()
   const [year, setYear] = useState<string | undefined>()
   const [bio, setBio] = useState('')
+  const [gender, setGender] = useState<Gender | undefined>()
+  const [genderSelf, setGenderSelf] = useState('')
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -32,6 +37,8 @@ export default function ProfileSetup() {
       setPhotoUrl(p.photoUrl)
       setYear(p.gradYear)
       setBio(p.bio ?? '')
+      setGender(p.gender)
+      setGenderSelf(p.genderSelfDescribe ?? '')
     })
   }, [user])
 
@@ -67,8 +74,11 @@ export default function ProfileSetup() {
           ...(photoUrl ? { photoUrl } : {}),
           ...(year ? { gradYear: year } : {}),
           bio: bio.trim(),
+          gender: gender ?? deleteField(),
+          genderSelfDescribe: gender === 'self' && genderSelf.trim() ? genderSelf.trim() : deleteField(),
           onboardingStep: 'done',
         })
+        invalidateMyGroup()
         if (photoUrl) await updateProfile(user, { photoURL: photoUrl })
         await updateListerOnListings(user.uid, { photoUrl, year })
         toast('Profile saved')
@@ -127,6 +137,35 @@ export default function ProfileSetup() {
             </button>
           ))}
         </div>
+      </fieldset>
+
+      <fieldset className="field chip-field">
+        <legend className="label">Gender (optional)</legend>
+        <div className="chips-wrap">
+          {GENDERS.map(([g, label]) => (
+            <button
+              key={g}
+              type="button"
+              className={gender === g ? 'chip chip-on' : 'chip'}
+              aria-pressed={gender === g}
+              onClick={() => setGender(gender === g ? undefined : g)}
+            >
+              {gender === g && <Check size={14} strokeWidth={2} aria-hidden="true" />}
+              {label}
+            </button>
+          ))}
+        </div>
+        {gender === 'self' && (
+          <input
+            className="input gender-self"
+            aria-label="Your gender, in your words"
+            maxLength={GENDER_SELF_MAX}
+            placeholder="In your words"
+            value={genderSelf}
+            onChange={(e) => setGenderSelf(e.target.value)}
+          />
+        )}
+        <p className="helper">Only you see this. We use it to show places that are open to you. Leave it blank if you'd rather not say.</p>
       </fieldset>
 
       <div className="field">

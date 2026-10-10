@@ -955,3 +955,9 @@ button.metric-tile:hover { filter: brightness(0.97); }
   .admin-split { grid-template-columns: minmax(0, 1fr) 420px; }
   .admin-detail { position: sticky; top: 92px; }
 }
+
+/* ---- Who can move in ---- */
+.open-to-line { display: flex; align-items: center; gap: var(--space-2); font-weight: 500; }
+.open-to-line > svg { color: var(--forest-600); }
+.open-to-tag { font-size: 13px; font-weight: 500; color: var(--forest-600); }
+.gender-self { margin-top: var(--space-2); }
