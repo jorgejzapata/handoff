@@ -69,7 +69,7 @@ export default function Account() {
 
       <section className="settings-group" aria-label="Login">
         <div className="settings-row">
-          <span className="settings-label">CSU email</span>
+          <span className="settings-label">School email</span>
           <span className="settings-value">
             <span className="settings-email">{user.email}</span>
             <BadgeCheck size={16} strokeWidth={1.5} className="verified-icon" aria-label="Verified" />

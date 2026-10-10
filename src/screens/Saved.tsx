@@ -99,7 +99,7 @@ export default function Saved() {
                         </div>
                       )}
                       <div className="gone-text">
-                        <p className="card-title">{s.title || 'A place near CSU'}</p>
+                        <p className="card-title">{s.title || 'A place near campus'}</p>
                         <p className="muted">
                           {formatRent(s.rentCents)} / mo
                           {s.availableFrom && s.availableTo && ` · ${formatDates(s.availableFrom, s.availableTo)}`}

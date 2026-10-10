@@ -241,12 +241,12 @@ const sections: LegalSection[] = [
   },
   {
     id: 'university',
-    title: 'Relationship to Colorado State University',
+    title: 'Relationship to Colleges and Universities',
     body: (
       <p>
-        Handoff is independent and is not affiliated with Colorado State University. We use your university email
-        address only to confirm that you are a current student. We do not receive education records from the
-        university, and we do not share your information with the university except as described in Section 4.
+        Handoff is independent and is not affiliated with any college or university. We use your school email
+        address only to confirm that you are a current student. We do not receive education records from any school,
+        and we do not share your information with your school except as described in Section 4.
       </p>
     ),
   },

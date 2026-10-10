@@ -16,6 +16,7 @@ import {
 } from 'firebase/firestore'
 import type { DocumentData, DocumentSnapshot } from 'firebase/firestore'
 import { db } from './firebase'
+import { MARKET_ID } from '../config'
 import type { Group } from './gender'
 
 // ---- Model ----
@@ -229,7 +230,7 @@ export function snapshotToListing(snap: DocumentSnapshot): Listing | null {
     availableFrom: timestampToIso(d.availableFrom),
     availableTo: timestampToIso(d.availableTo),
     datesFlexible: !!d.datesFlexible,
-    neighborhood: d.neighborhood ?? 'Fort Collins',
+    neighborhood: d.neighborhood || 'campus',
     approxLat: d.approxLat,
     approxLng: d.approxLng,
     distanceToCampusMi: d.distanceToCampusMi ?? 0,
@@ -240,7 +241,7 @@ export function snapshotToListing(snap: DocumentSnapshot): Listing | null {
     landlordStatus: d.landlordStatus ?? 'notSure',
     boosted: !!boostedUntil && boostedUntil > new Date(),
     lister: {
-      firstName: d.listerFirstName ?? 'A Ram',
+      firstName: d.listerFirstName ?? 'A student',
       photoUrl: d.listerPhotoUrl || undefined,
       year: d.listerYear || undefined,
       since: d.listerSince ?? '',
@@ -278,7 +279,7 @@ export function draftToPreview(d: ListingDraft, lister: Lister, id = 'preview'):
     availableFrom: d.availableFrom ?? '',
     availableTo: d.availableTo ?? '',
     datesFlexible: !!d.datesFlexible,
-    neighborhood: d.neighborhood || 'Fort Collins',
+    neighborhood: d.neighborhood || 'campus',
     approxLat: d.approxLat,
     approxLng: d.approxLng,
     distanceToCampusMi: d.distanceToCampusMi ?? 0,
@@ -301,7 +302,7 @@ export async function fetchActiveListings(max = 100): Promise<Listing[]> {
   const q = query(
     collection(db, 'listings'),
     where('status', '==', 'active'),
-    where('schoolId', '==', 'csu'),
+    where('schoolId', '==', MARKET_ID),
     orderBy('publishedAt', 'desc'),
     limit(max),
   )
@@ -349,7 +350,7 @@ export async function createDraft(uid: string, draft: ListingDraft) {
   const ref = await addDoc(collection(db, 'listings'), {
     ...draftToFirestore(draft),
     ownerId: uid,
-    schoolId: 'csu',
+    schoolId: MARKET_ID,
     status: 'draft',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -374,7 +375,7 @@ export async function deleteDraft(id: string) {
   await deleteDoc(doc(db, 'listings', id))
 }
 
-// Goes live. The rules require a verified CSU email and every required field.
+// Goes live. The rules require a verified school email and every required field.
 export async function publishListing(id: string, draft: ListingDraft, lister: Lister) {
   if (!draft.availableTo) throw new Error('Missing move-out date')
   await updateDoc(doc(db, 'listings', id), {

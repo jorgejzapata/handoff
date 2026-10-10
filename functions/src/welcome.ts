@@ -5,7 +5,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { appUrl, isProd } from './env.js'
 import { RESEND_API_KEY, button, esc, layout, sendEmail } from './mail.js'
 
-// Welcome email, sent once, right after a student verifies their CSU email.
+// Welcome email, sent once, right after a student verifies their school email.
 // The app sets users/{uid}.verifiedAt (and why they signed up) at that moment.
 
 type Reason = 'say-hi' | 'publish' | 'save' | 'messages' | 'login' | undefined
@@ -33,16 +33,16 @@ export function buildWelcome(firstName: string | undefined, reason: Reason, base
   const html = layout(
     [
       `<tr><td style="font-size:22px;font-weight:800;line-height:28px;padding-bottom:8px">You're in, ${esc(name)}.</td></tr>`,
-      `<tr><td style="font-size:15px;line-height:22px;padding-bottom:16px">Handoff is where CSU students sublet rooms and hand off leases, and only verified students can message. ${esc(step.line)}</td></tr>`,
+      `<tr><td style="font-size:15px;line-height:22px;padding-bottom:16px">Handoff is where students sublet rooms and hand off leases, and only verified students can message. ${esc(step.line)}</td></tr>`,
       `<tr><td style="padding-bottom:24px">${button(step.href, step.label)}</td></tr>`,
       `<tr><td style="font-size:14px;line-height:22px;border-top:1px solid #E3E6DC;padding-top:16px">
         <a href="${base}/listings" style="color:#3A6447;font-weight:600;white-space:nowrap">Browse places</a> &nbsp;·&nbsp;
         <a href="${base}/post" style="color:#3A6447;font-weight:600;white-space:nowrap">Post your place</a> &nbsp;·&nbsp;
         <a href="${base}/safety" style="color:#3A6447;font-weight:600;white-space:nowrap">Safety tips</a></td></tr>`,
     ],
-    `Never send money before you've seen the place and the lease.<br>You're getting this because you just verified your CSU email on Handoff.`,
+    `Never send money before you've seen the place and the lease.<br>You're getting this because you just verified your school email on Handoff.`,
   )
-  const text = `You're in, ${name}.\n\nHandoff is where CSU students sublet rooms and hand off leases, and only verified students can message. ${step.line}\n\n${step.label}: ${step.href}\n\nBrowse places: ${base}/listings\nPost your place: ${base}/post\nSafety tips: ${base}/safety\n\nNever send money before you've seen the place and the lease.`
+  const text = `You're in, ${name}.\n\nHandoff is where students sublet rooms and hand off leases, and only verified students can message. ${step.line}\n\n${step.label}: ${step.href}\n\nBrowse places: ${base}/listings\nPost your place: ${base}/post\nSafety tips: ${base}/safety\n\nNever send money before you've seen the place and the lease.`
 
   return { subject, html, text }
 }

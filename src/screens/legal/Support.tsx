@@ -8,7 +8,7 @@ export default function Support() {
       <h1 className="title">Contact Handoff</h1>
       <p>
         For questions about your account, a listing, a report or your personal information, email us at{' '}
-        <Mail to={SUPPORT_EMAIL} />. Writing from your CSU email helps us find your account. We aim to respond within
+        <Mail to={SUPPORT_EMAIL} />. Writing from your school email helps us find your account. We aim to respond within
         two business days.
       </p>
       <p>

@@ -46,9 +46,9 @@ export default function Home() {
     <div className="page home">
       <div className="home-top">
         <section className="hero">
-          <p className="eyebrow">Subleases near CSU</p>
+          <p className="eyebrow">Subleases near campus</p>
           <h1 className="display">A little less rent. A lot more possibility.</h1>
-          <p className="lead">Find a room for a semester, or hand off your lease to another Ram.</p>
+          <p className="lead">Find a room for a semester, or hand off your lease to another student.</p>
         </section>
 
         <form className="card search-card" onSubmit={findPlace} aria-label="Find a place">
@@ -135,7 +135,7 @@ export default function Home() {
           {newest.length < 4 && (
             <div className="strip-item">
               <Link to="/post" className="first-card">
-                <span className="heading">Be one of the first to post at CSU</span>
+                <span className="heading">Be one of the first to post</span>
                 <span className="btn btn-secondary btn-sm">Post your place</span>
               </Link>
             </div>
@@ -157,8 +157,8 @@ export default function Home() {
           <li>
             <MessageCircle size={24} strokeWidth={1.5} aria-hidden="true" />
             <div>
-              <p className="how-title">Chat with verified Rams</p>
-              <p className="muted">Only students with a CSU email can message you.</p>
+              <p className="how-title">Chat with verified students</p>
+              <p className="muted">Only students with a verified school email can message you.</p>
             </div>
           </li>
           <li>
@@ -174,7 +174,7 @@ export default function Home() {
       <section className="notice">
         <ShieldCheck size={20} strokeWidth={1.5} aria-hidden="true" />
         <div>
-          <p className="notice-title">Only verified CSU students can message listers.</p>
+          <p className="notice-title">Only verified students can message listers.</p>
           <p className="caption muted">Email verification does not verify the property or lease.</p>
         </div>
       </section>

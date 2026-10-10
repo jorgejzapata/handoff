@@ -68,7 +68,7 @@ function NoBottomNav() {
   )
 }
 
-// Messages and listing management need a verified CSU account.
+// Messages and listing management need a verified student account.
 function RequireVerified({ children }: { children: React.ReactNode }) {
   const { loading, user, verified } = useAuth()
   const { open } = useSignUp()
@@ -76,7 +76,7 @@ function RequireVerified({ children }: { children: React.ReactNode }) {
   if (verified) return <>{children}</>
   return (
     <div className="page empty">
-      <p className="heading">{user ? 'Verify your CSU email to keep going.' : 'Sign up or log in to keep going.'}</p>
+      <p className="heading">{user ? 'Verify your school email to keep going.' : 'Sign up or log in to keep going.'}</p>
       {user ? (
         <Link to="/verify" className="btn btn-primary">
           Verify my email

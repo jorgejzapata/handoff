@@ -263,7 +263,7 @@ export function ListerCard({ lister }: { lister: Listing['lister'] }) {
         <p className="lister-name">{lister.firstName}</p>
         <p className="verified">
           <BadgeCheck size={16} strokeWidth={1.5} aria-hidden="true" />
-          Verified CSU student
+          Verified student
         </p>
         <p className="caption muted">
           {[lister.year, lister.since && `On Handoff since ${lister.since}`].filter(Boolean).join(' · ')}

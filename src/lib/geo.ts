@@ -4,14 +4,14 @@
 // API key. It's fair-use, which is fine at one campus; swap in a paid geocoder
 // (Google Places, Mapbox) if usage grows.
 
-// CSU main campus, near the Lory Student Center. Moves to schools/{schoolId} later.
-export const CSU_CAMPUS = { lat: 40.5734, lng: -105.0843 }
+import { SERVICE_AREA } from '../config'
 
-// Fort Collins area, so suggestions stay local.
-const BBOX = '-105.25,40.45,-104.95,40.68'
+// The campus point and search box come from SERVICE_AREA in config.ts.
+export const CAMPUS = SERVICE_AREA.campus
+const BBOX = SERVICE_AREA.bbox
 
 export interface AddressResult {
-  label: string // "1234 Elizabeth St, Fort Collins"
+  label: string // "1234 Elizabeth St, Springfield"
   streetAddress: string
   neighborhood: string
   lat: number
@@ -38,7 +38,7 @@ export async function searchAddress(q: string, signal?: AbortSignal): Promise<Ad
   if (text.length < 4) return []
   const url =
     `https://photon.komoot.io/api/?q=${encodeURIComponent(text)}` +
-    `&lat=${CSU_CAMPUS.lat}&lon=${CSU_CAMPUS.lng}&bbox=${BBOX}&limit=6&lang=en`
+    `&lat=${CAMPUS.lat}&lon=${CAMPUS.lng}&bbox=${BBOX}&limit=6&lang=en`
   const res = await fetch(url, { signal })
   if (!res.ok) throw new Error(`Address search failed (${res.status})`)
   const json = (await res.json()) as { features: PhotonFeature[] }
@@ -48,7 +48,7 @@ export async function searchAddress(q: string, signal?: AbortSignal): Promise<Ad
       const p = f.properties
       const street = [p.housenumber, p.street ?? (p.type === 'street' ? p.name : undefined)].filter(Boolean).join(' ')
       const streetAddress = street || p.name || ''
-      const city = p.city ?? 'Fort Collins'
+      const city = p.city ?? ''
       return {
         label: [streetAddress, city].filter(Boolean).join(', '),
         streetAddress,
@@ -77,5 +77,5 @@ export function milesBetween(a: { lat: number; lng: number }, b: { lat: number; 
 
 // Distance from the exact address (more accurate), rounded to 0.1 mi.
 export function distanceToCampusMi(lat: number, lng: number) {
-  return Math.round(milesBetween({ lat, lng }, CSU_CAMPUS) * 10) / 10
+  return Math.round(milesBetween({ lat, lng }, CAMPUS) * 10) / 10
 }

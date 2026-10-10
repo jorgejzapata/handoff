@@ -176,7 +176,7 @@ export async function startConversation(listing: Listing, seeker: User, text: st
     listingTo: Timestamp.fromDate(new Date(`${listing.availableTo}T00:00:00Z`)),
     listerFirstName: listing.lister.firstName,
     listerPhotoUrl: listing.lister.photoUrl ?? null,
-    seekerFirstName: profile?.firstName || seeker.displayName || 'A Ram',
+    seekerFirstName: profile?.firstName || seeker.displayName || 'A student',
     seekerPhotoUrl: profile?.photoUrl ?? seeker.photoURL ?? null,
     lastMessage: { text: clean, senderId: seeker.uid, sentAt: serverTimestamp() },
     unreadCount: { [listing.ownerId]: 1, [seeker.uid]: 0 },

@@ -36,8 +36,8 @@ const sections: LegalSection[] = [
         <ul className="legal-list">
           <li>be at least 18 years of age and legally able to enter into a binding contract;</li>
           <li>
-            be a current student of Colorado State University and verify a university email address that we accept
-            (currently addresses ending in @colostate.edu or @rams.colostate.edu);
+            be a current student at a college or university and verify a school email address that we accept
+            (currently addresses ending in .edu);
           </li>
           <li>not have been previously suspended or removed from the Service; and</li>
           <li>not be prohibited from using the Service under any applicable law.</li>
@@ -82,8 +82,8 @@ const sections: LegalSection[] = [
             negotiate terms on anyone’s behalf; and
           </li>
           <li>
-            is an independent service that is not affiliated with, sponsored by or endorsed by Colorado State
-            University.
+            is an independent service that is not affiliated with, sponsored by or endorsed by any college or
+            university.
           </li>
         </ul>
         <p>
@@ -124,8 +124,8 @@ const sections: LegalSection[] = [
         </p>
         <p>
           Breaching a lease can expose the parties to eviction, fees or other liability. We encourage every member to
-          read their lease carefully and, where appropriate, seek independent legal advice. Colorado State University
-          students may be eligible for free lease review through CSU Student Legal Services.
+          read their lease carefully and, where appropriate, seek independent legal advice. Many colleges and
+          universities offer students free lease review through a student legal services office.
         </p>
       </>
     ),
@@ -137,8 +137,9 @@ const sections: LegalSection[] = [
       <>
         <p>
           Handoff is committed to an inclusive community in which every person is treated with dignity and has equal
-          access to housing opportunities. You agree to comply with the federal Fair Housing Act, the Colorado
-          Anti-Discrimination Act and all other applicable fair housing and civil rights laws.
+          access to housing opportunities. You agree to comply with the federal Fair Housing Act and all applicable
+          state and local fair housing and civil rights laws, such as the Colorado Anti-Discrimination Act where it
+          applies.
         </p>
         <p>
           You may not refuse to rent to, set different terms for, steer, harass or otherwise discriminate against any
@@ -162,8 +163,8 @@ const sections: LegalSection[] = [
         </p>
         <p>
           We may remove any content and suspend any account that we believe, in our reasonable judgment, violates
-          this section. If you believe you have experienced housing discrimination, you may also contact the Colorado
-          Civil Rights Division or the U.S. Department of Housing and Urban Development. Resources are listed in our{' '}
+          this section. If you believe you have experienced housing discrimination, you may also contact the U.S.
+          Department of Housing and Urban Development or your state’s civil rights agency. Resources are listed in our{' '}
           <Link to="/safety">Safety Guidelines</Link>.
         </p>
       </>

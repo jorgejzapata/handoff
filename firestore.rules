@@ -13,13 +13,12 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
-    // A verified CSU email: colostate.edu or rams.colostate.edu.
-    // Used by listings and messages once those collections exist.
-    // A verified CSU email whose account isn't suspended.
-    function isVerifiedCsu() {
+    // A verified school email (any domain ending in .edu) whose account isn't
+    // suspended. Keep in sync with STUDENT_EMAIL_SUFFIXES in src/lib/auth.ts.
+    function isVerifiedStudent() {
       return signedIn()
         && request.auth.token.email_verified == true
-        && request.auth.token.email.lower().matches('.*@(rams[.])?colostate[.]edu')
+        && request.auth.token.email.lower().matches('[^@]+@([a-z0-9-]+[.])+edu')
         && !exists(/databases/$(database)/documents/suspensions/$(request.auth.uid));
     }
 
@@ -200,14 +199,14 @@ service cloud.firestore {
             && !changed().hasAny(['publishedAt', 'expiresAt', 'filledAt', 'filledViaHandoff']))
           // Publishing
           || (resource.data.status == 'draft' && request.resource.data.status == 'active'
-            && isVerifiedCsu()
+            && isVerifiedStudent()
             && publishable(request.resource.data)
             && request.resource.data.publishedAt == request.time
             && validExpiry(request.resource.data)
             && !changed().hasAny(['filledAt', 'filledViaHandoff']))
           // Editing a live listing
           || (resource.data.status == 'active' && request.resource.data.status == 'active'
-            && isVerifiedCsu()
+            && isVerifiedStudent()
             && publishable(request.resource.data)
             && !changed().hasAny(['publishedAt', 'filledAt', 'filledViaHandoff'])
             && (!changed().hasAny(['expiresAt']) || validExpiry(request.resource.data)))
@@ -218,7 +217,7 @@ service cloud.firestore {
             && !changed().hasAny(['publishedAt', 'expiresAt']))
           // Relisting a filled or expired listing
           || (resource.data.status in ['filled', 'expired'] && request.resource.data.status == 'active'
-            && isVerifiedCsu()
+            && isVerifiedStudent()
             && publishable(request.resource.data)
             && request.resource.data.publishedAt == request.time
             && validExpiry(request.resource.data)
@@ -258,7 +257,7 @@ service cloud.firestore {
           return get(/databases/$(database)/documents/listings/$(listingId)).data;
         }
 
-        allow create, update: if isOwner(saverId) && isVerifiedCsu()
+        allow create, update: if isOwner(saverId) && isVerifiedStudent()
           && request.resource.data.keys().hasOnly(['at'])
           && request.resource.data.at == request.time
           && savedListing().status == 'active'
@@ -290,7 +289,7 @@ service cloud.firestore {
     // expired places still show in the list. Only they can see it.
     match /users/{uid}/saved/{listingId} {
       allow read, delete: if isOwner(uid);
-      allow create, update: if isOwner(uid) && isVerifiedCsu()
+      allow create, update: if isOwner(uid) && isVerifiedStudent()
         && request.resource.data.keys().hasOnly(
              ['savedAt', 'title', 'rentCents', 'thumbUrl', 'availableFrom', 'availableTo', 'neighborhood'])
         && request.resource.data.savedAt == request.time
@@ -362,7 +361,7 @@ service cloud.firestore {
     match /conversations/{convId} {
       allow get, list: if signedIn() && request.auth.uid in resource.data.participantIds;
 
-      allow create: if isVerifiedCsu()
+      allow create: if isVerifiedStudent()
         && request.resource.data.keys().hasOnly(['listingId', 'listerId', 'seekerId', 'participantIds',
              'listingTitle', 'listingThumbUrl', 'listingRentCents', 'listingFrom', 'listingTo',
              'listerFirstName', 'listerPhotoUrl', 'seekerFirstName', 'seekerPhotoUrl', 'lastMessage',
@@ -370,7 +369,7 @@ service cloud.firestore {
         && convId == request.resource.data.listingId + '_' + request.auth.uid
         && validNewConversation(request.resource.data);
 
-      allow update: if isVerifiedCsu()
+      allow update: if isVerifiedStudent()
         && request.auth.uid in resource.data.participantIds
         && (
           // Sending a message
@@ -443,7 +442,7 @@ service cloud.firestore {
         allow read: if signedIn()
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participantIds;
 
-        allow create: if isVerifiedCsu()
+        allow create: if isVerifiedStudent()
           && request.auth.uid in convAfter().participantIds
           && convAfter().blockedBy == null
           && request.resource.data.keys().hasOnly(['senderId', 'text', 'sentAt', 'type', 'attachment'])
@@ -480,7 +479,7 @@ service cloud.firestore {
     // ---- reports/{reportId} ----
     // Students create; only admins (custom claim) read and act on them.
     match /reports/{reportId} {
-      allow create: if isVerifiedCsu()
+      allow create: if isVerifiedStudent()
         && request.resource.data.keys().hasOnly(
              ['reporterId', 'targetType', 'targetId', 'reason', 'details', 'status', 'createdAt'])
         && request.resource.data.reporterId == request.auth.uid

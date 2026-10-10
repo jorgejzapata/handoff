@@ -80,7 +80,7 @@ export const onNewMessage = onDocumentCreated(
     if (!to) return
 
     const senderName: string =
-      (sender === conv.listerId ? conv.listerFirstName : conv.seekerFirstName) || 'A Ram'
+      (sender === conv.listerId ? conv.listerFirstName : conv.seekerFirstName) || 'A student'
     const listing: string = conv.listingTitle || 'your place'
     const link = `${appUrl()}/messages/${convId}`
     const subject = `${senderName} sent you a message on Handoff${isProd() ? '' : ' (test)'}`

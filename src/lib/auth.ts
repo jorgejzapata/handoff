@@ -13,20 +13,22 @@ import {
 import type { User } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from './firebase'
+import { MARKET_ID } from '../config'
 import { captureAnonDraft, restoreDraft } from './draftCarry'
 
-// CSU is the only school at launch. Both domains count: colostate.edu for
-// NetID addresses and rams.colostate.edu for student accounts.
-export const CSU_DOMAINS = ['colostate.edu', 'rams.colostate.edu']
+// Who can join: students with a school email. Any address whose domain ends
+// in one of these counts (so name@school.edu and name@mail.school.edu both
+// work). Keep this in sync with isStudentEmail() in firestore.rules.
+export const STUDENT_EMAIL_SUFFIXES = ['.edu']
 
-export function isCsuEmail(email: string | null | undefined) {
+export function isStudentEmail(email: string | null | undefined) {
   if (!email) return false
-  const domain = email.trim().toLowerCase().split('@')[1]
-  return CSU_DOMAINS.includes(domain)
+  const domain = email.trim().toLowerCase().split('@')[1] ?? ''
+  return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain) && STUDENT_EMAIL_SUFFIXES.some((s) => domain.endsWith(s))
 }
 
-export function isVerifiedCsu(user: User | null) {
-  return !!user && user.emailVerified && isCsuEmail(user.email)
+export function isVerifiedStudent(user: User | null) {
+  return !!user && user.emailVerified && isStudentEmail(user.email)
 }
 
 // Where the verification link sends people after Firebase confirms the email.
@@ -45,7 +47,7 @@ async function ensureUserDoc(user: User, firstName: string) {
   await setDoc(ref, {
     firstName,
     email: user.email,
-    schoolId: 'csu',
+    schoolId: MARKET_ID,
     onboardingStep: 'profile',
     createdAt: serverTimestamp(),
     lastActiveAt: serverTimestamp(),
@@ -62,7 +64,7 @@ export async function ensureAnonymous() {
 
 export async function signUpWithEmail(firstName: string, email: string, password: string) {
   const cleanEmail = email.trim().toLowerCase()
-  if (!isCsuEmail(cleanEmail)) throw new AuthMessage('not-csu')
+  if (!isStudentEmail(cleanEmail)) throw new AuthMessage('not-student')
   const current = auth.currentUser
   const { user } = current?.isAnonymous
     ? await linkWithCredential(current, EmailAuthProvider.credential(cleanEmail, password))
@@ -81,7 +83,7 @@ export async function logInWithEmail(email: string, password: string) {
   const carry = await captureAnonDraft()
   const { user } = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password)
   await restoreDraft(carry, user.uid)
-  await ensureUserDoc(user, user.displayName ?? 'Ram').catch((e) => console.error('[handoff] users doc', e))
+  await ensureUserDoc(user, user.displayName ?? 'Student').catch((e) => console.error('[handoff] users doc', e))
   return user
 }
 
@@ -95,7 +97,7 @@ export function logOut() {
 
 // ---- Errors, in Handoff's voice ----
 
-type MessageCode = 'not-csu' | 'google-not-csu'
+type MessageCode = 'not-student'
 
 export class AuthMessage extends Error {
   constructor(public code: MessageCode) {
@@ -111,9 +113,7 @@ export interface FriendlyError {
 
 export function friendlyError(err: unknown): FriendlyError | null {
   if (err instanceof AuthMessage) {
-    if (err.code === 'not-csu')
-      return { message: 'Handoff is just for CSU students right now. Use your @colostate.edu email.', field: 'email' }
-    return { message: "That Google account isn't a CSU one. Sign up with your CSU email instead." }
+    return { message: 'Handoff is for students right now. Use your school email (it ends in .edu).', field: 'email' }
   }
   if (err instanceof FirebaseError) {
     switch (err.code) {

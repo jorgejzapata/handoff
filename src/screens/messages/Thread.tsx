@@ -1,3 +1,4 @@
+import { SERVICE_AREA } from '../../config'
 import { KEEP_IT_FRIENDLY, hasBlockedLanguage, maskBlockedLanguage } from '../../lib/moderation'
 import { Linkify } from '../../components/Linkify'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -258,7 +259,7 @@ export function Thread({ id }: { id: string }) {
           <p className="lister-name">{other.firstName}</p>
           <p className="verified caption">
             <BadgeCheck size={14} strokeWidth={1.5} aria-hidden="true" />
-            Verified CSU student
+            Verified student
           </p>
         </div>
         <div className="menu-wrap">
@@ -349,7 +350,7 @@ export function Thread({ id }: { id: string }) {
                         </span>
                         <a
                           className="maps-link"
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${m.text}, Fort Collins, CO`)}`}
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${m.text}, ${SERVICE_AREA.city}`)}`}
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => e.stopPropagation()}

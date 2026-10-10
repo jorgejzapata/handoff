@@ -45,7 +45,7 @@ export interface BlockedPerson {
 
 export async function fetchBlocked(uid: string): Promise<BlockedPerson[]> {
   const snap = await getDocs(collection(db, 'users', uid, 'blocks'))
-  return snap.docs.map((d) => ({ uid: d.id, firstName: (d.data().firstName as string) || 'A Ram' }))
+  return snap.docs.map((d) => ({ uid: d.id, firstName: (d.data().firstName as string) || 'A student' }))
 }
 
 // Lets them message again. Threads I closed by blocking them reopen too.

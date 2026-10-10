@@ -3,7 +3,7 @@ import { LngLatBounds, Map as MlMap, Marker, NavigationControl, setWorkerUrl } f
 import type { GeoJSONSource } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { CSU_CAMPUS } from '../../lib/geo'
+import { CAMPUS } from '../../lib/geo'
 
 // Maps use MapLibre with OpenFreeMap tiles: free, no API key, OpenStreetMap
 // data. The basemap is tinted with Handoff's canvas, sage and forest tokens,
@@ -112,7 +112,7 @@ export default function MapView({
   // Create the map once.
   useEffect(() => {
     if (!el.current) return
-    const start = center ?? circle ?? CSU_CAMPUS
+    const start = center ?? circle ?? CAMPUS
     const m = new MlMap({
       container: el.current,
       style: isDark() ? STYLES.dark : STYLES.light,

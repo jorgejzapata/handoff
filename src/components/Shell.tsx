@@ -158,7 +158,7 @@ export function Footer() {
         <Link to="/safety">Safety</Link>
         <Link to="/support">Contact</Link>
       </div>
-      <p className="caption muted">Made at CSU</p>
+      <p className="caption muted">Made by students</p>
     </footer>
   )
 }

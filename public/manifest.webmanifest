@@ -1,7 +1,7 @@
 {
   "name": "Handoff",
   "short_name": "Handoff",
-  "description": "Find a room for a semester, or hand off your lease to another Ram.",
+  "description": "Find a room for a semester, or hand off your lease to another student.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

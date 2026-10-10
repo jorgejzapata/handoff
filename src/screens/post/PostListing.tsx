@@ -175,7 +175,7 @@ export default function PostListing() {
     setPublishing(true)
     try {
       await publishListing(id, draft, {
-        firstName: user?.displayName || 'A Ram',
+        firstName: user?.displayName || 'A student',
         since: listerSince(user?.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date()),
       })
       clearListingsCache()

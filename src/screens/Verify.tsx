@@ -30,7 +30,7 @@ function pendingLine(p: PendingAction | null) {
   }
 }
 
-// "Check your CSU inbox". Watches for verification and continues on its own.
+// "Check your school inbox". Watches for verification and continues on its own.
 export default function Verify() {
   const { user, loading, verified, refresh } = useAuth()
   const navigate = useNavigate()
@@ -52,7 +52,7 @@ export default function Verify() {
         const live =
           !!id &&
           (await publishDraftById(id, user.uid, {
-            firstName: user.displayName || 'A Ram',
+            firstName: user.displayName || 'A student',
             since: listerSince(user.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date()),
           }))
         if (live) {
@@ -173,7 +173,7 @@ export default function Verify() {
   return (
     <div className="page verify">
       <Mail size={48} strokeWidth={1.5} aria-hidden="true" className="verify-icon" />
-      <h1 className="title">Check your CSU inbox</h1>
+      <h1 className="title">Check your school inbox</h1>
       <p>
         We sent a link to <strong>{user.email}</strong>. Tap it, then come back here.
       </p>

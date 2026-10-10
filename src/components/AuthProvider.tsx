@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { onIdTokenChanged } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { auth } from '../lib/firebase'
-import { isVerifiedCsu } from '../lib/auth'
+import { isVerifiedStudent } from '../lib/auth'
 import { fetchProfile, markVerified } from '../lib/users'
 
 // What the student was doing when the sign-up sheet opened, so Verify can
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [photoUrl, setPhotoUrl] = useState<string | undefined>()
   const uid = user && !user.isAnonymous ? user.uid : null
 
-  const verifiedNow = isVerifiedCsu(user)
+  const verifiedNow = isVerifiedStudent(user)
   useEffect(() => {
     // Give the Verify screen a moment to record why they signed up first.
     if (!uid || !verifiedNow) return
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: user && !user.isAnonymous ? user : null,
         rawUser: user,
         loading,
-        verified: isVerifiedCsu(user),
+        verified: isVerifiedStudent(user),
         refresh,
         photoUrl,
         setPhotoUrl,

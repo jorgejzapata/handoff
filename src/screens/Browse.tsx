@@ -162,7 +162,7 @@ export default function Browse() {
       ) : listings?.length === 0 ? (
         <div className="empty">
           <House size={48} strokeWidth={1.5} aria-hidden="true" />
-          <p className="heading">No places yet. Be one of the first to post at CSU.</p>
+          <p className="heading">No places yet. Be one of the first to post.</p>
           <p className="muted">Posting is free and takes about 5 minutes.</p>
           <Link to="/post" className="btn btn-accent">
             Post your place
@@ -229,7 +229,7 @@ function BrowseMap({
     <div className="browse-map">
       <LazyMap
         className="map-browse"
-        label={`Map of ${pins.length} places near CSU`}
+        label={`Map of ${pins.length} places near campus`}
         pins={pins}
         activePinId={selected}
         onPinClick={onSelect}

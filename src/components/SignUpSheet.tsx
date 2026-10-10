@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router'
 import { X } from 'lucide-react'
 import {
   friendlyError,
-  isCsuEmail,
+  isStudentEmail,
   logInWithEmail,
   resetPassword,
   signUpWithEmail,
@@ -137,9 +137,9 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
 
     if (mode === 'signup') {
       if (!firstName.trim()) return setError({ message: 'Add your first name.', field: 'name' })
-      if (!isCsuEmail(email))
+      if (!isStudentEmail(email))
         return setError({
-          message: 'Handoff is just for CSU students right now. Use your @colostate.edu email.',
+          message: 'Handoff is for students right now. Use your school email (it ends in .edu).',
           field: 'email',
         })
       if (password.length < 8) return setError({ message: 'Use at least 8 characters.', field: 'password' })
@@ -193,7 +193,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
         <h2 id={titleId} className="title-sm">
           {title}
         </h2>
-        {mode === 'signup' && <p className="muted">Listers only hear from verified CSU students.</p>}
+        {mode === 'signup' && <p className="muted">Listers only hear from verified students.</p>}
         {mode === 'reset' && !resetSent && <p className="muted">We'll email you a link to set a new one.</p>}
 
         {mode === 'reset' && resetSent ? (
@@ -213,7 +213,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
                 />
               </Field>
             )}
-            <Field id="su-email" label="CSU email" error={fieldError('email')}>
+            <Field id="su-email" label="School email" error={fieldError('email')}>
               <input
                 id="su-email"
                 className="input"
@@ -221,7 +221,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
                 inputMode="email"
                 autoComplete="email"
                 autoCapitalize="none"
-                placeholder="you@colostate.edu"
+                placeholder="you@school.edu"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 aria-invalid={!!fieldError('email')}

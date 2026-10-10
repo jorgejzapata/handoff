@@ -267,7 +267,7 @@ describe('listings: drafts', () => {
 describe('listings: publishing', () => {
   beforeEach(() => seedListing('l1', { ...newDraft('maya', complete), createdAt: Timestamp.now(), updatedAt: Timestamp.now() }))
 
-  test('a verified CSU student can publish a complete draft', async () => {
+  test('a verified student can publish a complete draft', async () => {
     const db = env.authenticatedContext('maya', verifiedMaya).firestore()
     await assertSucceeds(updateDoc(doc(db, 'listings/l1'), publishPatch()))
   })
@@ -279,9 +279,17 @@ describe('listings: publishing', () => {
     await assertFails(updateDoc(doc(env.authenticatedContext('maya', anon).firestore(), 'listings/l1'), publishPatch()))
   })
 
-  test('a verified non-CSU email cannot publish', async () => {
+  test('a verified non-school email cannot publish', async () => {
     const db = env.authenticatedContext('maya', verifiedGmail).firestore()
     await assertFails(updateDoc(doc(db, 'listings/l1'), publishPatch()))
+  })
+
+  test('any school (.edu) email works; look-alike domains do not', async () => {
+    const as = (email) => env.authenticatedContext('maya', { email, email_verified: true }).firestore()
+    await assertFails(updateDoc(doc(as('maya@school.edu.evil.com'), 'listings/l1'), publishPatch()))
+    await assertFails(updateDoc(doc(as('maya@edu'), 'listings/l1'), publishPatch()))
+    await assertFails(updateDoc(doc(as('maya@notanedu'), 'listings/l1'), publishPatch()))
+    await assertSucceeds(updateDoc(doc(as('Maya@Mail.DU.edu'), 'listings/l1'), publishPatch()))
   })
 
   test('an incomplete draft cannot go live', async () => {
@@ -526,7 +534,7 @@ const mayaVerified = verifiedMaya
 describe('conversations: starting a thread', () => {
   beforeEach(() => seedLiveListing())
 
-  test('a verified CSU student can say hi', async () => {
+  test('a verified student can say hi', async () => {
     await assertSucceeds(startAs(jakeVerified, 'jake'))
   })
 

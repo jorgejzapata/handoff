@@ -36,7 +36,7 @@ export default function DeleteAccountInfo() {
       </div>
       {SUPPORT_EMAIL && (
         <p className="caption muted">
-          Can't log in? Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from your CSU email and we'll delete it for you.
+          Can't log in? Email <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> from your school email and we'll delete it for you.
         </p>
       )}
     </div>

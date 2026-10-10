@@ -56,7 +56,7 @@ export default function PostLive() {
     <div className="page verify">
       <CircleCheck size={48} strokeWidth={1.5} aria-hidden="true" className="verify-icon" />
       <h1 className="title">You're live!</h1>
-      <p className="muted">Share it in your CSU housing groups to get it seen.</p>
+      <p className="muted">Share it in your school's housing groups to get it seen.</p>
 
       {listing && (
         <div className="live-card">

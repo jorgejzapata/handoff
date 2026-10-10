@@ -96,7 +96,7 @@ function Inbox({ activeId }: { activeId?: string }) {
           <div className="empty">
             <MessageCircle size={48} strokeWidth={1.5} aria-hidden="true" />
             <p className="heading">No messages yet.</p>
-            <p className="muted">Share your listing to get it in front of more Rams.</p>
+            <p className="muted">Share your listing to get it in front of more students.</p>
             <button
               type="button"
               className="btn btn-secondary"

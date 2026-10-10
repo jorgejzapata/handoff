@@ -241,9 +241,9 @@ const BATHROOMS = [1, 1.5, 2, 2.5, 3] as const
 function suggestTitle(d: ListingDraft) {
   const furnished = d.furnished ? 'Furnished ' : ''
   if (d.listingType === 'takeover') {
-    return d.bedrooms === 0 ? `${furnished}studio near CSU` : `${furnished}${d.bedrooms ?? 2}-bed place near CSU`
+    return d.bedrooms === 0 ? `${furnished}studio near campus` : `${furnished}${d.bedrooms ?? 2}-bed place near campus`
   }
-  return `${furnished}${furnished ? 'room' : 'Room'} in a ${d.bedrooms ?? 3}-bed near CSU`
+  return `${furnished}${furnished ? 'room' : 'Room'} in a ${d.bedrooms ?? 3}-bed near campus`
 }
 
 export function StepPlace({ draft, update }: StepProps) {
@@ -595,7 +595,7 @@ export function StepLocation({
       approxLat: approx.lat,
       approxLng: approx.lng,
       distanceToCampusMi: distanceToCampusMi(r.lat, r.lng),
-      neighborhood: draft.neighborhood || r.neighborhood || 'Fort Collins',
+      neighborhood: draft.neighborhood || r.neighborhood || '',
     })
     void persist(r.streetAddress, r.lat, r.lng, unit)
   }

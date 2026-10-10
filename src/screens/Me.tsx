@@ -53,12 +53,12 @@ export default function Me() {
           {verified ? (
             <p className="verified">
               <BadgeCheck size={16} strokeWidth={1.5} aria-hidden="true" />
-              Verified CSU student
+              Verified student
             </p>
           ) : (
             <Link to="/verify" className="unverified">
               <CircleAlert size={16} strokeWidth={1.5} aria-hidden="true" />
-              Verify your CSU email
+              Verify your school email
             </Link>
           )}
           <p className="caption muted">{user.email}</p>

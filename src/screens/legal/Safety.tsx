@@ -65,8 +65,8 @@ const sections: LegalSection[] = [
           </li>
           <li>document the condition of the space with dated photos at move-in and move-out; and</li>
           <li>
-            seek independent advice when unsure. CSU students may request a free lease review from CSU Student Legal
-            Services.
+            seek independent advice when unsure. Many schools offer students a free lease review through student legal
+            services.
           </li>
         </ul>
         <p>
@@ -168,26 +168,23 @@ const sections: LegalSection[] = [
           <strong>Emergency:</strong> call or text <Tel n="911" />
         </li>
         <li>
-          <strong>CSU Police Department</strong> (non-emergency): <Tel n="970-491-6425" />
+          <strong>Non-emergency police:</strong> your campus police department or your city’s police non-emergency
+          line
         </li>
         <li>
-          <strong>Fort Collins Police Services</strong> (non-emergency): <Tel n="970-419-3273" />
+          <strong>Confidential support, 24 hours a day:</strong> your school’s victim advocacy or counseling center;
+          the RAINN National Sexual Assault Hotline at <Tel n="800-656-4673" />; or the National Domestic Violence
+          Hotline at <Tel n="800-799-7233" />
         </li>
         <li>
-          <strong>CSU SAFE Center Victim Assistance Team</strong> (confidential, 24 hours a day):{' '}
-          <Tel n="970-492-4242" />
+          <strong>Lease and tenant questions:</strong> your school’s student legal services or off-campus housing
+          office
         </li>
         <li>
-          <strong>CSU Student Legal Services</strong> (lease review and tenant questions): <Tel n="970-491-1482" />,
-          Lory Student Center, Room 274
-        </li>
-        <li>
-          <strong>CSU Off-Campus Life</strong> (off-campus housing and roommate resources): <Tel n="970-491-2248" />
-        </li>
-        <li>
-          <strong>Housing discrimination:</strong>{' '}
-          <Ext href="https://ccrd.colorado.gov/discrimination">Colorado Civil Rights Division</Ext> or the{' '}
-          <Ext href="https://www.hud.gov/fairhousing">U.S. Department of Housing and Urban Development</Ext>
+          <strong>Housing discrimination:</strong> the{' '}
+          <Ext href="https://www.hud.gov/fairhousing">U.S. Department of Housing and Urban Development</Ext> or your
+          state’s civil rights agency (in Colorado, the{' '}
+          <Ext href="https://ccrd.colorado.gov/discrimination">Colorado Civil Rights Division</Ext>)
         </li>
         <li>
           <strong>Report a scam:</strong> <Ext href="https://reportfraud.ftc.gov/">Federal Trade Commission</Ext> or,

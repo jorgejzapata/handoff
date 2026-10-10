@@ -31,7 +31,7 @@ function rent(cents: number) {
 }
 
 export function tagsFor(id: string, d: FirebaseFirestore.DocumentData) {
-  const title = (d.title as string) || 'A place near CSU'
+  const title = (d.title as string) || 'A place near campus'
   const type = d.listingType === 'takeover' ? 'Whole place' : 'Room'
   const dates = [day(d.availableFrom), day(d.availableTo)].filter(Boolean).join(' – ')
   const line = [`${rent(d.rentCents ?? 0)}/mo`, dates, type, d.neighborhood ? `near ${d.neighborhood}` : '']

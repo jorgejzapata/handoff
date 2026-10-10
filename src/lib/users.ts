@@ -31,7 +31,7 @@ export async function saveProfile(uid: string, changes: Partial<Record<keyof Pro
   await updateDoc(doc(db, 'users', uid), { ...changes, lastActiveAt: serverTimestamp() })
 }
 
-// Marks the moment a student verified their CSU email, once. The welcome
+// Marks the moment a student verified their school email, once. The welcome
 // email goes out from the server when this appears. `reason` is what they
 // were doing when they signed up (say hi, publish, save), so the email can
 // pick up where they left off.

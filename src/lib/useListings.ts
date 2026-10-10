@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchActiveListings } from './listings'
 import type { Listing } from './listings'
 
-// Live CSU listings, newest first. At one campus this is a small list, so
+// Live listings, newest first. At one campus this is a small list, so
 // filtering and sorting happen in the browser.
 let cache: { at: number; listings: Listing[] } | null = null
 
