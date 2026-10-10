@@ -1,3 +1,4 @@
+import { Linkify } from '../../components/Linkify'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { ArrowLeft, ArrowUp, BadgeCheck, EllipsisVertical, FileText, Info, MapPin, Paperclip, RotateCw, ShieldAlert, X } from 'lucide-react'
@@ -331,7 +332,7 @@ export function Thread({ id }: { id: string }) {
                             loading="lazy"
                           />
                         </a>
-                        {m.text && <span className="bubble-caption">{m.text}</span>}
+                        {m.text && <span className="bubble-caption"><Linkify text={m.text} /></span>}
                       </>
                     ) : m.type === 'file' && m.attachment ? (
                       <>
@@ -348,10 +349,10 @@ export function Thread({ id }: { id: string }) {
                             <span className="caption">PDF · {formatBytes(m.attachment.size)} · Open</span>
                           </span>
                         </a>
-                        {m.text && <span className="bubble-caption">{m.text}</span>}
+                        {m.text && <span className="bubble-caption"><Linkify text={m.text} /></span>}
                       </>
                     ) : (
-                      m.text
+                      <Linkify text={m.text} />
                     )}
                   </div>
                   {(openTime === m.id || m.pending) && (
