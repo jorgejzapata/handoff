@@ -1,43 +1,83 @@
-import { app, usingEmulators } from './lib/firebase'
+import { Link, Outlet, Route, Routes } from 'react-router'
+import { Construction } from 'lucide-react'
+import { BottomNav, TopBar } from './components/Shell'
+import { SignUpProvider } from './components/SignUpSheet'
+import Home from './screens/Home'
+import Browse from './screens/Browse'
+import ListingDetail from './screens/ListingDetail'
+import PostListing from './screens/PostListing'
+import { usingEmulators } from './lib/firebase'
 
-function Mark() {
+if (usingEmulators) console.info('[handoff] Firebase is using the local emulators')
+
+// Screens with the full shell: top bar plus the mobile bottom nav.
+function WithNav() {
   return (
-    <svg viewBox="0 0 96 80" width="34" height="28" aria-hidden="true">
-      <rect x="12" y="8" width="20" height="64" rx="10" fill="var(--ink)" />
-      <rect x="50" y="8" width="20" height="64" rx="10" fill="var(--ink)" />
-      <rect x="12" y="30" width="78" height="20" rx="10" fill="var(--lime-300)" />
-    </svg>
+    <>
+      <TopBar />
+      <main className="shell-main">
+        <Outlet />
+      </main>
+      <BottomNav />
+    </>
+  )
+}
+
+// Screens with their own bottom bar (listing detail) keep the top bar on desktop only.
+function NoBottomNav() {
+  return (
+    <>
+      <div className="desktop-only">
+        <TopBar />
+      </div>
+      <Outlet />
+    </>
+  )
+}
+
+function NotBuiltYet({ title }: { title: string }) {
+  return (
+    <div className="page empty">
+      <Construction size={48} strokeWidth={1.5} aria-hidden="true" />
+      <p className="heading">{title} is coming soon.</p>
+      <Link to="/listings" className="btn btn-secondary">
+        Browse places
+      </Link>
+    </div>
+  )
+}
+
+function NotFound() {
+  return (
+    <div className="page empty">
+      <p className="heading">This page wandered off.</p>
+      <Link to="/listings" className="btn btn-secondary">
+        Browse places
+      </Link>
+    </div>
   )
 }
 
 export default function App() {
-  const project = app.options.projectId
-
   return (
-    <div className="shell">
-      <header className="topbar">
-        <Mark />
-        <span className="wordmark">handoff</span>
-      </header>
-
-      <main>
-        <section className="hero">
-          <p className="eyebrow">Subleases near CSU</p>
-          <h1 className="display">A little less rent. A lot more possibility.</h1>
-          <p className="body-muted">
-            Find a room for a semester, or hand off your lease to another Ram. Coming soon.
-          </p>
-        </section>
-
-        {import.meta.env.DEV && (
-          <p className="notice">
-            <span className={usingEmulators ? 'dot' : 'dot live'} />
-            {usingEmulators
-              ? `Dev mode · connected to local emulators (${project})`
-              : `Dev mode · connected to the real ${project} project`}
-          </p>
-        )}
-      </main>
-    </div>
+    <SignUpProvider>
+      <Routes>
+        <Route element={<WithNav />}>
+          <Route index element={<Home />} />
+          <Route path="listings" element={<Browse />} />
+          <Route path="saved" element={<NotBuiltYet title="Saved" />} />
+          <Route path="messages" element={<NotBuiltYet title="Messages" />} />
+          <Route path="safety" element={<NotBuiltYet title="Safety tips" />} />
+          <Route path="terms" element={<NotBuiltYet title="Terms" />} />
+          <Route path="privacy" element={<NotBuiltYet title="Privacy" />} />
+          <Route path="support" element={<NotBuiltYet title="Support" />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+        <Route element={<NoBottomNav />}>
+          <Route path="listings/:id" element={<ListingDetail />} />
+        </Route>
+        <Route path="post" element={<PostListing />} />
+      </Routes>
+    </SignUpProvider>
   )
 }
