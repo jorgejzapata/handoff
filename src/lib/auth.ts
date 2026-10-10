@@ -1,28 +1,22 @@
 import { FirebaseError } from 'firebase/app'
 import {
   EmailAuthProvider,
-  GoogleAuthProvider,
   createUserWithEmailAndPassword,
-  getAdditionalUserInfo,
   linkWithCredential,
-  linkWithPopup,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInAnonymously,
-  signInWithCredential,
   signInWithEmailAndPassword,
-  signInWithPopup,
   signOut,
-  unlink,
   updateProfile,
 } from 'firebase/auth'
-import type { User, UserCredential } from 'firebase/auth'
+import type { User } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from './firebase'
 import { captureAnonDraft, restoreDraft } from './draftCarry'
 
 // CSU is the only school at launch. Both domains count: colostate.edu for
-// NetID addresses and rams.colostate.edu for student Google accounts.
+// NetID addresses and rams.colostate.edu for student accounts.
 export const CSU_DOMAINS = ['colostate.edu', 'rams.colostate.edu']
 
 export function isCsuEmail(email: string | null | undefined) {
@@ -93,47 +87,6 @@ export async function logInWithEmail(email: string, password: string) {
 
 export async function resetPassword(email: string) {
   await sendPasswordResetEmail(auth, email.trim().toLowerCase())
-}
-
-export async function continueWithGoogle() {
-  const provider = new GoogleAuthProvider()
-  // Hint Google to show only CSU student accounts. A hint, not a guarantee,
-  // so the domain is checked again below.
-  provider.setCustomParameters({ hd: 'rams.colostate.edu', prompt: 'select_account' })
-  const current = auth.currentUser
-  let result: UserCredential
-  let linked = false
-  let carry: Awaited<ReturnType<typeof captureAnonDraft>> = null
-
-  if (current?.isAnonymous) {
-    try {
-      result = await linkWithPopup(current, provider)
-      linked = true
-    } catch (err) {
-      // This Google account already has a Handoff account: sign in to it instead.
-      const cred = (err as { code?: string }).code === 'auth/credential-already-in-use'
-        ? GoogleAuthProvider.credentialFromError(err as never)
-        : null
-      if (!cred) throw err
-      carry = await captureAnonDraft()
-      result = await signInWithCredential(auth, cred)
-    }
-  } else {
-    result = await signInWithPopup(auth, provider)
-  }
-
-  const user = result.user
-  if (!isCsuEmail(user.email)) {
-    if (linked) await unlink(user, 'google.com').catch(() => {})
-    else if (getAdditionalUserInfo(result)?.isNewUser) await user.delete().catch(() => signOut(auth))
-    else await signOut(auth)
-    throw new AuthMessage('google-not-csu')
-  }
-  if (carry) await restoreDraft(carry, user.uid)
-  await user.getIdToken(true)
-  const firstName = (user.displayName ?? '').split(' ')[0] || 'Ram'
-  await ensureUserDoc(user, firstName)
-  return user
 }
 
 export function logOut() {

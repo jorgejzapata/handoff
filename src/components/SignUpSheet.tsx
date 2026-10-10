@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { X } from 'lucide-react'
 import {
-  continueWithGoogle,
   friendlyError,
   isCsuEmail,
   logInWithEmail,
@@ -176,16 +175,6 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
     })
   }
 
-  function onGoogle() {
-    void run(async () => {
-      const user = await continueWithGoogle()
-      onClose()
-      if (args.reason === 'publish' || args.reason === 'say-hi') return navigate('/verify')
-      clearPending()
-      toast(`You're in${user.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}.`)
-    })
-  }
-
   const title = mode === 'login' ? 'Log in to Handoff' : mode === 'reset' ? 'Reset your password' : titleFor(args)
   const fieldError = (f: FriendlyError['field']) => (error?.field === f ? error : null)
 
@@ -288,18 +277,6 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
                     : 'Create account'}
             </button>
           </form>
-        )}
-
-        {mode === 'signup' && (
-          <>
-            <div className="divider" role="separator">
-              <span>or</span>
-            </div>
-            <button type="button" className="btn btn-secondary btn-block" onClick={onGoogle} disabled={busy}>
-              Continue with Google
-            </button>
-            <p className="caption muted center">For @rams.colostate.edu accounts</p>
-          </>
         )}
 
         <p className="center">
