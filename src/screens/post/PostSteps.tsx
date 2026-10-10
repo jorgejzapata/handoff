@@ -1,3 +1,4 @@
+import { hasBlockedLanguage } from '../../lib/moderation'
 import { useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
@@ -50,7 +51,8 @@ export function stepValid(step: number, d: ListingDraft) {
       return (
         d.bedrooms !== undefined &&
         !!d.title?.trim() &&
-        (d.description?.trim().length ?? 0) >= LIMITS.descriptionMin
+        (d.description?.trim().length ?? 0) >= LIMITS.descriptionMin &&
+        !hasBlockedLanguage(`${d.title ?? ''} ${d.description ?? ''}`)
       )
     case 3:
       return (d.photos?.length ?? 0) >= 1
@@ -315,6 +317,7 @@ export function StepPlace({ draft, update }: StepProps) {
         label="Title"
         htmlFor="title"
         helper={`${draft.title?.length ?? 0} / ${LIMITS.titleMax}`}
+        error={hasBlockedLanguage(draft.title ?? '') ? 'Keep it friendly. Remove the word that isn’t allowed on Handoff.' : null}
       >
         <input
           id="title"
@@ -334,6 +337,7 @@ export function StepPlace({ draft, update }: StepProps) {
       <Field
         label="Description"
         htmlFor="desc"
+        error={hasBlockedLanguage(draft.description ?? '') ? 'Keep it friendly. Remove the word that isn’t allowed on Handoff.' : null}
         helper={
           descLen < LIMITS.descriptionMin
             ? `At least ${LIMITS.descriptionMin} characters (${LIMITS.descriptionMin - descLen} to go).`

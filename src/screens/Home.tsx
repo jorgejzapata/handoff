@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { DollarSign, MessageCircle, PencilLine, ShieldCheck, Handshake } from 'lucide-react'
 import { ListingCard } from '../components/ListingCard'
 import { DateInput } from '../components/DateInput'
@@ -12,6 +12,13 @@ type PlaceType = 'any' | 'room' | 'whole'
 
 export default function Home() {
   const navigate = useNavigate()
+  // If a listing link's preview page ever falls back, it lands here with ?listing=id.
+  const [params] = useSearchParams()
+  const fallbackListing = params.get('listing')
+  useEffect(() => {
+    if (fallbackListing && /^[A-Za-z0-9_-]{1,64}$/.test(fallbackListing))
+      navigate(`/listings/${fallbackListing}`, { replace: true })
+  }, [fallbackListing, navigate])
   // Returning visitors get their last search back.
   const [last] = useState(readLastSearch)
   const [from, setFrom] = useState(last.from ?? '')

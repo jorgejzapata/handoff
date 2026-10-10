@@ -1,3 +1,4 @@
+import { maskBlockedLanguage } from '../lib/moderation'
 import { useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
@@ -62,7 +63,7 @@ export function ListingView({
               <p className="eyebrow">{eyebrowLabel(listing)}</p>
               {edit(0)}
             </div>
-            <h1 className="title">{listing.title || 'Your title'}</h1>
+            <h1 className="title">{maskBlockedLanguage(listing.title) || 'Your title'}</h1>
             <p className="muted">
               Near {listing.neighborhood} · {distanceLabel(listing.distanceToCampusMi)}
             </p>
@@ -105,7 +106,7 @@ export function ListingView({
               <h2 className="heading">About this place</h2>
               {edit(2)}
             </div>
-            <p className={expanded ? 'prewrap' : 'prewrap clamp-6'}>{listing.description || 'Your description'}</p>
+            <p className={expanded ? 'prewrap' : 'prewrap clamp-6'}>{maskBlockedLanguage(listing.description) || 'Your description'}</p>
             {listing.description.length > 280 && (
               <button type="button" className="link-btn" onClick={() => setExpanded((e) => !e)}>
                 {expanded ? 'Show less' : 'Read more'}

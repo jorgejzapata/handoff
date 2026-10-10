@@ -58,6 +58,10 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
              ['firstName', 'photoUrl', 'gradYear', 'bio', 'gender', 'genderSelfDescribe',
               'notificationPrefs', 'onboardingStep', 'lastActiveAt'])
+        && (!('notificationPrefs' in request.resource.data)
+            || (request.resource.data.notificationPrefs is map
+              && request.resource.data.notificationPrefs.keys().hasOnly(['email'])
+              && request.resource.data.notificationPrefs.get('email', true) is bool))
         && (!('gender' in request.resource.data)
             || request.resource.data.gender in ['woman', 'man', 'nonbinary', 'self'])
         && (!('genderSelfDescribe' in request.resource.data)

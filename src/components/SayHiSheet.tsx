@@ -1,3 +1,4 @@
+import { KEEP_IT_FRIENDLY, hasBlockedLanguage, maskBlockedLanguage } from '../lib/moderation'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { Check } from 'lucide-react'
@@ -40,6 +41,11 @@ export function SayHiSheet({ listing, onClose }: { listing: Listing; onClose: ()
 
   async function send() {
     if (!text.trim() || sending) return
+    if (hasBlockedLanguage(text)) {
+      setText(maskBlockedLanguage(text))
+      toast(KEEP_IT_FRIENDLY)
+      return // let them see the change before it goes
+    }
     if (!verified || !user) {
       onClose()
       open({ reason: 'say-hi', listerName: name, listingId: listing.id, message: text.trim() })

@@ -5,6 +5,22 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "*.log",
+        "src"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" install",
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
   "hosting": {
     "public": "dist",
     "ignore": [
@@ -13,6 +29,13 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/listings/*",
+        "function": {
+          "functionId": "listingPage",
+          "region": "us-central1"
+        }
+      },
       {
         "source": "**",
         "destination": "/index.html"

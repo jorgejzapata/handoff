@@ -115,6 +115,14 @@ describe('users/{uid}', () => {
       await assertFails(updateDoc(ref, { genderSelfDescribe: 'x'.repeat(31) }))
     })
 
+    test('message-email setting is a single on/off switch', async () => {
+      const db = env.authenticatedContext('maya', maya).firestore()
+      const ref = doc(db, 'users/maya')
+      await assertSucceeds(updateDoc(ref, { notificationPrefs: { email: false } }))
+      await assertFails(updateDoc(ref, { notificationPrefs: { email: 'nope' } }))
+      await assertFails(updateDoc(ref, { notificationPrefs: { sms: true } }))
+    })
+
     test('bio is capped at 140 characters', async () => {
       const db = env.authenticatedContext('maya', maya).firestore()
       await assertFails(updateDoc(doc(db, 'users/maya'), { bio: 'x'.repeat(141) }))

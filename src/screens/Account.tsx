@@ -11,6 +11,7 @@ import { getTheme, setTheme, analyticsAllowed, setAnalyticsAllowed } from '../li
 import type { Theme } from '../lib/settings'
 import { setAnalyticsEnabled } from '../lib/firebase'
 import { SUPPORT_EMAIL } from '../config'
+import { fetchProfile, saveProfile } from '../lib/users'
 
 type Sheet_ = 'password' | 'delete' | null
 
@@ -21,9 +22,12 @@ export default function Account() {
   const [analytics, setAnalytics] = useState(analyticsAllowed)
   const [blocked, setBlocked] = useState<BlockedPerson[] | null>(null)
   const [sheet, setSheet] = useState<Sheet_>(null)
+  const [emailAlerts, setEmailAlerts] = useState(true)
 
   useEffect(() => {
-    if (user) fetchBlocked(user.uid).then(setBlocked).catch(() => setBlocked([]))
+    if (!user) return
+    fetchBlocked(user.uid).then(setBlocked).catch(() => setBlocked([]))
+    fetchProfile(user.uid).then((p) => setEmailAlerts(p?.notificationPrefs?.email !== false))
   }, [user])
 
   if (!user) return null
@@ -31,6 +35,16 @@ export default function Account() {
   function pickTheme(t: Theme) {
     setThemeState(t)
     setTheme(t)
+  }
+
+  async function toggleEmailAlerts(on: boolean) {
+    setEmailAlerts(on)
+    try {
+      await saveProfile(user!.uid, { notificationPrefs: { email: on } })
+    } catch {
+      setEmailAlerts(!on)
+      toast("Couldn't save that. Try again in a minute.")
+    }
   }
 
   function toggleAnalytics(on: boolean) {
@@ -105,6 +119,17 @@ export default function Account() {
             ))}
           </div>
         </div>
+
+        <label className="settings-row toggle-row settings-toggle">
+          <span>
+            <span className="settings-label">Email me about new messages</span>
+            <span className="caption muted settings-help">
+              Only when you're not in the app. At most one email per chat every 30 minutes.
+            </span>
+          </span>
+          <input type="checkbox" role="switch" checked={emailAlerts} onChange={(e) => void toggleEmailAlerts(e.target.checked)} />
+          <span className="switch" aria-hidden="true" />
+        </label>
 
         <label className="settings-row toggle-row settings-toggle">
           <span>

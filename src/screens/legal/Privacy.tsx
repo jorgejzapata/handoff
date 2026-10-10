@@ -92,7 +92,10 @@ const sections: LegalSection[] = [
             detect, investigate and prevent fraud, abuse, discrimination, security incidents and violations of our
             Terms, and review reports;
           </li>
-          <li>communicate with you about your account, including verification, security and service notices;</li>
+          <li>
+            communicate with you about your account, including verification, security and service notices, and, unless
+            you turn them off, emails letting you know about new messages;
+          </li>
           <li>understand usage and improve the Service, using aggregated or de-identified information where possible;</li>
           <li>process payments for optional paid features, if offered; and</li>
           <li>comply with legal obligations and enforce our rights.</li>
@@ -119,7 +122,8 @@ const sections: LegalSection[] = [
         <ul className="legal-list">
           <li>Google (Firebase) for authentication, database, file storage, hosting and analytics;</li>
           <li>OpenFreeMap, which receives your IP address when your device loads map images;</li>
-          <li>Photon by Komoot, which receives the text of address searches when a lister enters an address; and</li>
+          <li>Photon by Komoot, which receives the text of address searches when a lister enters an address;</li>
+          <li>Resend, which delivers new-message email notifications on our behalf; and</li>
           <li>Stripe, if you purchase a paid feature on the web, to process your payment.</li>
         </ul>
         <p>
@@ -173,8 +177,9 @@ const sections: LegalSection[] = [
             Privacy Control signal, analytics start turned off.
           </li>
           <li>
-            <em>Communications:</em> service-related messages, such as verification and security notices, are part of
-            the Service and cannot be opted out of while you hold an account.
+            <em>Communications:</em> you can turn off new-message emails in Account settings or from the link in any
+            such email. Service-related messages, such as verification and security notices, are part of the Service
+            and cannot be opted out of while you hold an account.
           </li>
         </ul>
         <p>

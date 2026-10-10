@@ -1,3 +1,4 @@
+import { maskBlockedLanguage } from '../lib/moderation'
 import { Link } from 'react-router'
 import { Heart, ImageIcon } from 'lucide-react'
 import type { Listing } from '../lib/listings'
@@ -79,7 +80,7 @@ export function ListingCard({ listing, note }: { listing: Listing; note?: string
         <p className="price">
           {formatRent(listing.rentCents)} <span className="per-mo">/ mo</span>
         </p>
-        <p className="card-title">{listing.title}</p>
+        <p className="card-title">{maskBlockedLanguage(listing.title)}</p>
         <p>{typeLine(listing)}</p>
         <p>{formatDates(listing.availableFrom, listing.availableTo)}</p>
         {!isOpenToAnyone(listing.openTo) && <p className="open-to-tag">{openToLabel(listing.openTo)}</p>}

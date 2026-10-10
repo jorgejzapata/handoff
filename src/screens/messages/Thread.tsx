@@ -1,3 +1,4 @@
+import { KEEP_IT_FRIENDLY, hasBlockedLanguage, maskBlockedLanguage } from '../../lib/moderation'
 import { Linkify } from '../../components/Linkify'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
@@ -143,6 +144,10 @@ export function Thread({ id }: { id: string }) {
   async function send(text = draft, type: 'text' | 'address' = 'text') {
     if (!conv || sending) return
     stick.current = true // sending always jumps to your new message
+    if (hasBlockedLanguage(text)) {
+      text = maskBlockedLanguage(text)
+      toast(KEEP_IT_FRIENDLY)
+    }
     // A photo or PDF goes out with whatever's typed as its caption.
     if (type === 'text' && pendingFile) {
       if (!pendingFile.attachment) return
@@ -364,7 +369,7 @@ export function Thread({ id }: { id: string }) {
                             loading="lazy"
                           />
                         </a>
-                        {m.text && <span className="bubble-caption"><Linkify text={m.text} /></span>}
+                        {m.text && <span className="bubble-caption"><Linkify text={maskBlockedLanguage(m.text)} /></span>}
                       </>
                     ) : m.type === 'file' && m.attachment ? (
                       <>
@@ -381,10 +386,10 @@ export function Thread({ id }: { id: string }) {
                             <span className="caption">PDF · {formatBytes(m.attachment.size)} · Open</span>
                           </span>
                         </a>
-                        {m.text && <span className="bubble-caption"><Linkify text={m.text} /></span>}
+                        {m.text && <span className="bubble-caption"><Linkify text={maskBlockedLanguage(m.text)} /></span>}
                       </>
                     ) : (
-                      <Linkify text={m.text} />
+                      <Linkify text={maskBlockedLanguage(m.text)} />
                     )}
                   </div>
                   {(openTime === m.id || m.pending) && (
