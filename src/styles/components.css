@@ -201,29 +201,64 @@ input[type='date'].input::-webkit-calendar-picker-indicator { display: none; }
 .card-title { font-weight: 500; }
 
 /* ================= Home ================= */
-.hero { padding: 32px 0 var(--space-6); display: flex; flex-direction: column; gap: 12px; }
+.hero { padding: 28px 0 var(--space-6); display: flex; flex-direction: column; gap: 12px; }
+/* Two beats, one per line; each beat wraps on its own if it has to. */
+.hero-title > span { display: block; }
+.hero-title { text-wrap: balance; }
+.hero .lead { max-width: 34em; }
+.hero-points { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 4px; }
+.hero-points li { display: inline-flex; align-items: center; gap: 6px; font: 500 13px/18px var(--font-body); }
+.hero-points svg { color: var(--forest-600); }
+
 .search-card { display: flex; flex-direction: column; gap: 14px; }
+
 .lister-card {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px 14px; align-items: start;
   margin-top: var(--space-6);
   padding: 20px var(--space-4);
   background: var(--sage-100); border-radius: var(--radius-lg);
 }
-.lister-card .btn { margin-top: 10px; }
+.lister-text { display: flex; flex-direction: column; gap: 4px; }
+.lister-card > .btn { grid-column: 1 / -1; justify-self: start; margin-top: 4px; }
+.lister-icon {
+  display: grid; place-items: center; flex: none;
+  width: 44px; height: 44px; border-radius: var(--radius-md);
+  background: var(--surface); color: var(--forest-600);
+  box-shadow: 0 0 0 1px var(--line);
+}
 
 .strip {
   display: grid; grid-auto-flow: column; grid-auto-columns: 78%; gap: 12px;
   overflow-x: auto; scroll-snap-type: x mandatory;
   margin: 0 calc(-1 * var(--space-4)); padding: 0 var(--space-4) 4px;
+  scroll-padding-inline: var(--space-4);
   scrollbar-width: none;
 }
 .strip::-webkit-scrollbar { display: none; }
 .strip-item { scroll-snap-align: start; }
+.strip .listing-card { transition: border-color 0.15s ease, transform 0.15s ease; }
+.strip .listing-card:hover { border-color: var(--forest-600); }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .strip .listing-card:hover { transform: translateY(-2px); }
+}
 
-.how { display: flex; flex-direction: column; gap: 16px; }
+.how { display: flex; flex-direction: column; gap: 18px; }
 .how li { display: flex; gap: 14px; align-items: flex-start; }
-.how li > svg { color: var(--forest-600); margin-top: 2px; }
-.how-title { font: 800 15px/20px var(--font-display); }
+.how li > div { display: flex; flex-direction: column; gap: 2px; }
+.how-icon {
+  position: relative; display: grid; place-items: center; flex: none;
+  width: 48px; height: 48px; border-radius: var(--radius-md);
+  background: var(--sage-100); color: var(--forest-600);
+}
+.how-num {
+  position: absolute; top: -6px; right: -6px;
+  display: grid; place-items: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--ink); color: var(--canvas);
+  font: 900 11px/1 var(--font-display);
+  box-shadow: 0 0 0 2px var(--canvas);
+}
+.how-title { font: 800 15px/20px var(--font-display); padding-top: 4px; }
 .home > .notice { margin-top: 32px; }
 
 /* ================= Browse ================= */
@@ -412,9 +447,14 @@ input[type='date'].input::-webkit-calendar-picker-indicator { display: none; }
   .shell-main { padding-bottom: 0; }
   .page { padding: 0 var(--space-6); }
 
-  .home-top { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 64px; align-items: center; padding: 48px 0 16px; }
-  .home-top .hero { padding: 0; }
-  .home-top .display { font-size: 52px; line-height: 54px; }
+  .home-top { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 56px; align-items: center; padding: 64px 0 24px; }
+  .home-top .hero { padding: 0; gap: 16px; }
+  .home-top .display { font-size: 54px; line-height: 56px; letter-spacing: -0.025em; }
+  .home-top .lead { font-size: 17px; line-height: 26px; }
+  .home-top .search-card { padding: 20px; }
+  .lister-card { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; padding: 20px 24px; margin-top: 32px; }
+  .lister-card > .btn { grid-column: auto; margin-top: 0; }
+  .section { margin-top: 48px; }
   .strip { display: grid; grid-auto-flow: row; grid-template-columns: repeat(4, minmax(0, 1fr)); overflow: visible; margin: 0; padding: 0; }
   .how { flex-direction: row; gap: var(--space-6); }
   .how li { flex: 1; }
@@ -498,15 +538,21 @@ input[type='date'].input::-webkit-calendar-picker-indicator { display: none; }
 .avatar-img { object-fit: cover; padding: 0; }
 
 .mine-row {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  color: var(--ink);
   margin-top: var(--space-4); padding: 12px var(--space-4);
   border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface);
 }
+.mine-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.mine-text .card-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mine-row > svg { color: var(--muted); }
 .first-card {
-  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 14px;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 8px;
   height: 100%; min-height: 220px; padding: 20px;
   border: 1.5px dashed var(--line); border-radius: var(--radius-lg);
 }
+.first-card .btn { margin-top: 8px; }
+.first-card:hover { border-color: var(--forest-600); }
 .live-card { margin: 8px 0; }
 
 /* ================= Post wizard forms ================= */
