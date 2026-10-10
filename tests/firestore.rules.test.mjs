@@ -587,6 +587,35 @@ describe('conversations: attachments', () => {
   })
 })
 
+describe('listing views', () => {
+  beforeEach(() => seedLiveListing())
+  const view = { day: '20261010', at: serverTimestamp() }
+
+  test('anyone, even signed out, can record one view per day', async () => {
+    const db = env.unauthenticatedContext().firestore()
+    await assertSucceeds(setDoc(doc(db, 'listings/live/views/20261010_visitorabc123'), view))
+    // Same visitor, same day: no second count.
+    await assertFails(setDoc(doc(db, 'listings/live/views/20261010_visitorabc123'), view))
+  })
+
+  test("the lister's own visits don't count", async () => {
+    const db = env.authenticatedContext('maya', mayaVerified).firestore()
+    await assertFails(setDoc(doc(db, 'listings/live/views/20261010_mayavisitor1'), view))
+  })
+
+  test('only the lister can read views', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'listings/live/views/20261010_visitorabc123'), { day: '20261010', at: Timestamp.now() }))
+    await assertSucceeds(getDocs(collection(env.authenticatedContext('maya', mayaVerified).firestore(), 'listings/live/views')))
+    await assertFails(getDocs(collection(env.authenticatedContext('jake', jakeVerified).firestore(), 'listings/live/views')))
+  })
+
+  test('bad ids and extra fields are rejected', async () => {
+    const db = env.unauthenticatedContext().firestore()
+    await assertFails(setDoc(doc(db, 'listings/live/views/whatever'), view))
+    await assertFails(setDoc(doc(db, 'listings/live/views/20261010_visitorabc123'), { ...view, count: 500 }))
+  })
+})
+
 describe('reports', () => {
   const report = (extra = {}) => ({
     reporterId: 'jake',

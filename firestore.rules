@@ -184,6 +184,24 @@ service cloud.firestore {
         && resource.data.ownerId == request.auth.uid
         && resource.data.status in ['draft', 'active', 'filled', 'expired'];
 
+      // Views: one doc per visitor per day ({yyyymmdd}_{visitorId}). Anyone,
+      // even signed out, can record a view of a live listing; nobody can edit
+      // one, and only the lister can read them. The lister's own visits don't count.
+      match /views/{viewId} {
+        function viewedListing() {
+          return get(/databases/$(database)/documents/listings/$(listingId)).data;
+        }
+
+        allow create: if viewId.matches('[0-9]{8}_[A-Za-z0-9]{8,40}')
+          && request.resource.data.keys().hasOnly(['day', 'at'])
+          && request.resource.data.day == viewId.split('_')[0]
+          && request.resource.data.at == request.time
+          && viewedListing().status == 'active'
+          && (request.auth == null || request.auth.uid != viewedListing().ownerId);
+
+        allow read: if signedIn() && viewedListing().ownerId == request.auth.uid;
+      }
+
       // The exact address. Only the owner ever reads it; it leaves their
       // account only when they share it in a chat.
       match /private/{docId} {

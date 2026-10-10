@@ -10,6 +10,8 @@ import { useInbox } from '../components/InboxProvider'
 import { SayHiSheet } from '../components/SayHiSheet'
 import { ReportSheet } from '../components/ReportSheet'
 import { MarkFilledSheet } from '../components/MarkFilledSheet'
+import { ViewStats } from '../components/ViewStats'
+import { recordView } from '../lib/views'
 import { fetchListing } from '../lib/listings'
 import type { Listing } from '../lib/listings'
 import { formatDates, formatRent, formatShortDate } from '../lib/format'
@@ -18,7 +20,7 @@ export default function ListingDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { open } = useSignUp()
-  const { rawUser, verified } = useAuth()
+  const { rawUser, verified, loading: authLoading } = useAuth()
   const { conversations } = useInbox()
   const toast = useToast()
   const [listing, setListing] = useState<Listing | null | undefined>(undefined)
@@ -33,6 +35,12 @@ export default function ListingDetail() {
       alive = false
     }
   }, [id, rawUser?.uid, reloadKey])
+
+  // Count a view once auth is known, so the lister's own visits never count.
+  useEffect(() => {
+    if (authLoading || !listing || listing.status !== 'active') return
+    void recordView(listing.id, listing.ownerId, rawUser?.uid)
+  }, [authLoading, listing, rawUser?.uid])
 
   if (listing === undefined) return <div className="detail detail-loading" aria-busy="true" />
 
@@ -87,7 +95,15 @@ export default function ListingDetail() {
 
   return (
     <div className="detail">
-      {isOwn && <p className="own-banner">This is your listing, as seekers see it.</p>}
+      {isOwn && (
+        <div className="own-banner own-banner-stats">
+          <p>This is your listing, as seekers see it.</p>
+          {listing.status === 'active' && <ViewStats listingId={listing.id} compact />}
+          <Link to={`/me/listings/${listing.id}/edit`} className="text-link caption">
+            Edit listing
+          </Link>
+        </div>
+      )}
       {closed && (
         <p className="own-banner">{listing.status === 'filled' ? 'This place was filled' : 'This listing expired'}</p>
       )}

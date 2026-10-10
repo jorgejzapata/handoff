@@ -1,7 +1,10 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { Link } from 'react-router'
-import { Check, House, SearchX } from 'lucide-react'
+import { Check, House, List, Map as MapIcon, SearchX } from 'lucide-react'
+import { LazyMap } from '../components/map/LazyMap'
+import type { MapPin } from '../components/map/MapView'
+import { formatRent } from '../lib/format'
 import { ListingCard } from '../components/ListingCard'
 import type { Listing } from '../lib/listings'
 import { formatDates } from '../lib/format'
@@ -33,6 +36,8 @@ export default function Browse() {
   const type = params.get('type') ?? 'any'
   const furnished = params.get('furnished') === '1'
   const sort = (params.get('sort') as Sort) ?? 'recommended'
+  const mapView = params.get('view') === 'map'
+  const [selectedPin, setSelectedPin] = useState<string | null>(null)
   const { listings, loading, error } = useActiveListings()
 
   // Remember the dates for Say hi and the next visit to Home.
@@ -102,9 +107,23 @@ export default function Browse() {
             ))}
           </select>
         </label>
+        <div className="view-toggle" role="group" aria-label="View">
+          <button type="button" aria-pressed={!mapView} className={!mapView ? 'seg seg-on' : 'seg'} onClick={() => update('view', null)}>
+            <List size={16} strokeWidth={1.5} aria-hidden="true" />
+            List
+          </button>
+          <button type="button" aria-pressed={mapView} className={mapView ? 'seg seg-on' : 'seg'} onClick={() => update('view', 'map')}>
+            <MapIcon size={16} strokeWidth={1.5} aria-hidden="true" />
+            Map
+          </button>
+        </div>
       </div>
 
-      {loading ? (
+      {mapView && !loading && !error && (listings?.length ?? 0) > 0 && (
+        <BrowseMap results={results} selected={selectedPin} onSelect={setSelectedPin} />
+      )}
+
+      {mapView && !loading && !error && (listings?.length ?? 0) > 0 ? null : loading ? (
         <div className="results-grid" aria-busy="true">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="skeleton-card" />
@@ -161,5 +180,45 @@ function Chip({ on, label, onClick }: { on: boolean; label: string; onClick?: ()
       {on && <Check size={14} strokeWidth={2} aria-hidden="true" />}
       {label}
     </button>
+  )
+}
+
+// Map view: price pins at each listing's approximate area (never the exact
+// address). Tapping a pin shows its card under the map.
+function BrowseMap({
+  results,
+  selected,
+  onSelect,
+}: {
+  results: Listing[]
+  selected: string | null
+  onSelect: (id: string | null) => void
+}) {
+  const pins = useMemo<MapPin[]>(
+    () =>
+      results
+        .filter((l) => l.approxLat !== undefined && l.approxLng !== undefined)
+        .map((l) => ({ id: l.id, lat: l.approxLat!, lng: l.approxLng!, label: formatRent(l.rentCents) })),
+    [results],
+  )
+  const picked = results.find((l) => l.id === selected)
+
+  return (
+    <div className="browse-map">
+      <LazyMap
+        className="map-browse"
+        label={`Map of ${pins.length} places near CSU`}
+        pins={pins}
+        activePinId={selected}
+        onPinClick={onSelect}
+        onMapClick={() => onSelect(null)}
+      />
+      <p className="caption muted map-note">Pins show the general area, not the exact address.</p>
+      {picked && (
+        <div className="map-card">
+          <ListingCard listing={picked} />
+        </div>
+      )}
+    </div>
   )
 }

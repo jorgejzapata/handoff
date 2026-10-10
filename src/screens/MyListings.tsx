@@ -7,6 +7,7 @@ import { useToast } from '../components/Toast'
 import { ConfirmDialog } from '../components/Sheet'
 import { MarkFilledSheet } from '../components/MarkFilledSheet'
 import { ListingPhoto } from '../components/ListingCard'
+import { ViewStats } from '../components/ViewStats'
 import { daysToExpiry, deleteListing, fetchMyListings, isPastExpiry, keepListingUp } from '../lib/listings'
 import type { Listing } from '../lib/listings'
 import { deleteListingPhoto } from '../lib/photos'
@@ -216,10 +217,13 @@ export default function MyListings() {
                 </Link>
 
                 {tab === 'live' && (
-                  <p className="caption muted manage-stats">
-                    {chats} {chats === 1 ? 'chat' : 'chats'}
-                    {l.expiresAt && ` · Expires ${formatShortDate(l.expiresAt)}`}
-                  </p>
+                  <>
+                    <ViewStats listingId={l.id} compact />
+                    <p className="caption muted manage-stats">
+                      {chats} {chats === 1 ? 'chat' : 'chats'}
+                      {l.expiresAt && ` · Expires ${formatShortDate(l.expiresAt)}`}
+                    </p>
+                  </>
                 )}
 
                 <div className="manage-actions">

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Bath, BedDouble, BadgeCheck, CircleCheck, CircleHelp, Clock, ImageIcon, Info, Sofa, Zap } from 'lucide-react'
 import type { Listing } from '../lib/listings'
+import { AREA_RADIUS_M, LazyMap } from './map/LazyMap'
 import {
   distanceLabel,
   eyebrowLabel,
@@ -142,9 +143,18 @@ export function ListingView({
               <h2 className="heading">Location</h2>
               {edit(4)}
             </div>
-            <div className="map" role="img" aria-label={`Approximate area near ${listing.neighborhood}`}>
-              <div className="map-circle" />
-            </div>
+            {listing.approxLat !== undefined && listing.approxLng !== undefined ? (
+              <LazyMap
+                className="map-detail"
+                label={`Map of the approximate area near ${listing.neighborhood}`}
+                circle={{ lat: listing.approxLat, lng: listing.approxLng, radiusM: AREA_RADIUS_M }}
+                zoom={14}
+              />
+            ) : (
+              <div className="map" role="img" aria-label={`Approximate area near ${listing.neighborhood}`}>
+                <div className="map-circle" />
+              </div>
+            )}
             <p className="muted">{name} shares the exact address in chat.</p>
           </section>
 

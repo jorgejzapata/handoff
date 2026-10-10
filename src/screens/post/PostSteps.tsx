@@ -21,6 +21,7 @@ import { approximate, distanceToCampusMi, searchAddress } from '../../lib/geo'
 import type { AddressResult } from '../../lib/geo'
 import { deleteListingPhoto, uploadListingPhoto } from '../../lib/photos'
 import { DateInput } from '../../components/DateInput'
+import { AREA_RADIUS_M, LazyMap } from '../../components/map/LazyMap'
 
 interface StepProps {
   draft: ListingDraft
@@ -631,9 +632,14 @@ export function StepLocation({
               onChange={(e) => update({ neighborhood: e.target.value })}
             />
           </Field>
-          <div className="map" role="img" aria-label="The general area seekers will see">
-            <div className="map-circle" />
-          </div>
+          {draft.approxLat !== undefined && draft.approxLng !== undefined && (
+            <LazyMap
+              className="map-detail"
+              label="The general area seekers will see"
+              circle={{ lat: draft.approxLat, lng: draft.approxLng, radiusM: AREA_RADIUS_M }}
+              zoom={14}
+            />
+          )}
         </>
       )}
 
