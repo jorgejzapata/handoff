@@ -238,6 +238,22 @@ service cloud.firestore {
         allow read: if signedIn() && viewedListing().ownerId == request.auth.uid;
       }
 
+      // Saves: one doc per student who saved it, so the lister sees "6 saves".
+      // Written in the same batch as users/{uid}/saved/{listingId}.
+      match /saves/{saverId} {
+        function savedListing() {
+          return get(/databases/$(database)/documents/listings/$(listingId)).data;
+        }
+
+        allow create, update: if isOwner(saverId) && isVerifiedCsu()
+          && request.resource.data.keys().hasOnly(['at'])
+          && request.resource.data.at == request.time
+          && savedListing().status == 'active'
+          && savedListing().ownerId != saverId;
+        allow delete: if isOwner(saverId);
+        allow read: if signedIn() && savedListing().ownerId == request.auth.uid;
+      }
+
       // The exact address. Only the owner ever reads it; it leaves their
       // account only when they share it in a chat.
       match /private/{docId} {
@@ -254,6 +270,23 @@ service cloud.firestore {
           && request.resource.data.exactLat is number
           && request.resource.data.exactLng is number;
       }
+    }
+
+    // ---- users/{uid}/saved/{listingId} ----
+    // A student's saved places, with a small snapshot of each so filled or
+    // expired places still show in the list. Only they can see it.
+    match /users/{uid}/saved/{listingId} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isVerifiedCsu()
+        && request.resource.data.keys().hasOnly(
+             ['savedAt', 'title', 'rentCents', 'thumbUrl', 'availableFrom', 'availableTo', 'neighborhood'])
+        && request.resource.data.savedAt == request.time
+        && isShortString(request.resource.data.title, 0, 60)
+        && request.resource.data.rentCents is int
+        && (request.resource.data.thumbUrl == null || isShortString(request.resource.data.thumbUrl, 1, 1000))
+        && isShortString(request.resource.data.availableFrom, 0, 10)
+        && isShortString(request.resource.data.availableTo, 0, 10)
+        && isShortString(request.resource.data.neighborhood, 0, 60);
     }
 
     // ---- users/{uid}/blocks/{blockedId} ----

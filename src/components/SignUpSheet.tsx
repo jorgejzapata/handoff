@@ -9,6 +9,7 @@ import {
   resetPassword,
   signUpWithEmail,
 } from '../lib/auth'
+import { savePendingListing } from '../lib/saved'
 import type { FriendlyError } from '../lib/auth'
 import { clearPending, savePending, useAuth } from './AuthProvider'
 import type { PendingAction } from './AuthProvider'
@@ -26,11 +27,6 @@ interface OpenArgs {
 
 const SignUpContext = createContext<{ open: (args: OpenArgs) => void }>({ open: () => {} })
 export const useSignUp = () => useContext(SignUpContext)
-
-// Until messaging and saves exist, a verified student gets a heads-up instead.
-const COMING_NEXT: Partial<Record<Reason, string>> = {
-  save: 'Saving places is coming next.',
-}
 
 function titleFor({ reason, listerName }: OpenArgs) {
   switch (reason) {
@@ -52,15 +48,10 @@ export function SignUpProvider({ children }: { children: ReactNode }) {
   const { user, verified } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const toast = useToast()
 
   const open = useCallback(
     (a: OpenArgs) => {
-      if (verified) {
-        const note = COMING_NEXT[a.reason]
-        if (note) toast(note)
-        return
-      }
+      if (verified) return
       savePending({
         reason: a.reason,
         listerName: a.listerName,
@@ -71,7 +62,7 @@ export function SignUpProvider({ children }: { children: ReactNode }) {
       if (user) navigate('/verify') // signed in, just not verified yet
       else setArgs(a)
     },
-    [verified, user, navigate, location, toast],
+    [verified, user, navigate, location],
   )
 
   return (
@@ -168,6 +159,11 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
         navigate('/verify')
       } else if (user.emailVerified) {
         clearPending()
+        if (args.reason === 'save' && args.listingId) {
+          const ok = await savePendingListing(user.uid, args.listingId).catch(() => false)
+          toast(ok ? 'Welcome back. Saved.' : 'Welcome back.')
+          return
+        }
         toast(`Welcome back${user.displayName ? `, ${user.displayName}` : ''}.`)
       } else {
         navigate('/verify')

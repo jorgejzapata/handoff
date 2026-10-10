@@ -3,6 +3,8 @@ import { Heart, ImageIcon } from 'lucide-react'
 import type { Listing } from '../lib/listings'
 import { distanceLabel, formatDates, formatRent, typeLine } from '../lib/format'
 import { useSignUp } from './SignUpSheet'
+import { useAuth } from './AuthProvider'
+import { useSaved } from './SavedProvider'
 import { isOpenToAnyone, openToLabel } from '../lib/gender'
 
 export function ListingPhoto({ listing, className = '' }: { listing: Listing; className?: string }) {
@@ -35,16 +37,23 @@ export function BoostedTag() {
   )
 }
 
-export function SaveButton({ floating = false }: { floating?: boolean }) {
+export function SaveButton({ listing, floating = false }: { listing: Listing; floating?: boolean }) {
   const { open } = useSignUp()
+  const { user, verified } = useAuth()
+  const { isSaved, toggle } = useSaved()
+  if (user && listing.ownerId === user.uid) return null // your own place
+  const on = verified && isSaved(listing.id)
   return (
     <button
       type="button"
-      className={floating ? 'float-btn' : 'icon-btn'}
-      aria-label="Save"
+      className={`${floating ? 'float-btn' : 'icon-btn'} save-btn`}
+      aria-label={on ? 'Remove from Saved' : 'Save'}
+      aria-pressed={on}
       onClick={(e) => {
         e.preventDefault()
-        open({ reason: 'save' })
+        e.stopPropagation()
+        if (!verified) open({ reason: 'save', listingId: listing.id })
+        else void toggle(listing)
       }}
     >
       <Heart size={20} strokeWidth={1.5} />
@@ -63,7 +72,7 @@ export function ListingCard({ listing, note }: { listing: Listing; note?: string
           </div>
         )}
         <div className="photo-tr">
-          <SaveButton floating />
+          <SaveButton listing={listing} floating />
         </div>
       </div>
       <div className="listing-card-body">

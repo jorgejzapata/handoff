@@ -473,6 +473,12 @@ input[type='date'].input::-webkit-calendar-picker-indicator { display: none; }
   border-radius: var(--radius-md);
   font: 500 14px/20px var(--font-body);
   animation: sheet-up 0.2s ease;
+  display: flex; align-items: center; gap: var(--space-4);
+}
+.toast-action {
+  pointer-events: auto; margin-left: auto;
+  background: none; border: 0; padding: 4px 0; min-height: 32px;
+  color: inherit; text-decoration: underline; text-underline-offset: 3px; font: 700 14px/20px var(--font-body); cursor: pointer;
 }
 @media (min-width: 1024px) { .toast-region { bottom: 32px; } }
 
@@ -961,3 +967,17 @@ button.metric-tile:hover { filter: brightness(0.97); }
 .open-to-line > svg { color: var(--forest-600); }
 .open-to-tag { font-size: 13px; font-weight: 500; color: var(--forest-600); }
 .gender-self { margin-top: var(--space-2); }
+
+/* ---- Saved ---- */
+.save-btn[aria-pressed='true'] svg { fill: var(--forest-600); color: var(--forest-600); }
+.title-count { color: var(--muted); font-weight: 600; }
+.saved .title { margin-bottom: var(--space-4); }
+.saved-gone { margin-top: var(--space-8, 32px); }
+.divider-label {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+  font: 600 13px/18px var(--font-body); color: var(--muted);
+}
+.divider-label::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.gone-card .manage-thumb, .gone-card .card-title { opacity: 0.55; }
+.gone-text { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; min-width: 0; }
+.gone-text .card-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }

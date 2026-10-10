@@ -118,7 +118,7 @@ export default function ListingDetail() {
               <button type="button" className="float-btn" aria-label="Share" onClick={share}>
                 <Share size={20} strokeWidth={1.5} />
               </button>
-              <SaveButton floating />
+              <SaveButton listing={listing} floating />
             </div>
           </div>
         }

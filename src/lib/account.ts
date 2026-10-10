@@ -9,6 +9,7 @@ import {
 import type { User } from 'firebase/auth'
 import { collection, deleteDoc, doc, getDocs, query, where, writeBatch } from 'firebase/firestore'
 import { deleteObject, ref } from 'firebase/storage'
+import { deleteAllSaved } from './saved'
 import { db, storage } from './firebase'
 import { deleteListing, fetchMyListings } from './listings'
 import { closeThreadsForListing } from './messages'
@@ -93,6 +94,7 @@ export async function deleteAccount(user: User, onStep?: (label: string) => void
   }
 
   onStep?.('Removing your profile')
+  await deleteAllSaved(uid).catch((e) => console.error('[handoff] delete saved', e))
   const blocks = await getDocs(collection(db, 'users', uid, 'blocks'))
   await Promise.all(blocks.docs.map((d) => deleteDoc(d.ref)))
   await deleteObject(ref(storage, `avatars/${uid}.jpg`)).catch(() => {})

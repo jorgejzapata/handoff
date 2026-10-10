@@ -9,6 +9,7 @@ import { logOut, sendVerification } from '../lib/auth'
 import { usingEmulators } from '../lib/firebase'
 import { getDraftPointer } from '../lib/draftCarry'
 import { fetchListing, listerSince, publishDraftById } from '../lib/listings'
+import { savePendingListing } from '../lib/saved'
 import { findMyConversation, startConversation } from '../lib/messages'
 
 const RESEND_SECONDS = 60
@@ -22,7 +23,7 @@ function pendingLine(p: PendingAction | null) {
     case 'publish':
       return "Your listing goes live the moment you're verified."
     case 'save':
-      return "Once you're verified, we'll take you right back to where you were."
+      return "That place saves the moment you're verified."
     default:
       return null
   }
@@ -84,6 +85,13 @@ export default function Verify() {
         console.error('[handoff] say hi after verify', e)
         toast("You're verified, but the message didn't send. Try Say hi again.")
       }
+      navigate(pending.returnTo ?? '/', { replace: true })
+      return
+    }
+
+    if (pending?.reason === 'save' && pending.listingId && user) {
+      const ok = await savePendingListing(user.uid, pending.listingId).catch(() => false)
+      toast(ok ? "You're verified. That place is in Saved." : "You're verified")
       navigate(pending.returnTo ?? '/', { replace: true })
       return
     }

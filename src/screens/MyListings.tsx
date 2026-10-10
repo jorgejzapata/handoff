@@ -1,3 +1,4 @@
+import { fetchSaveCount } from '../lib/saved'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { EllipsisVertical, House } from 'lucide-react'
@@ -221,6 +222,7 @@ export default function MyListings() {
                     <ViewStats listingId={l.id} compact />
                     <p className="caption muted manage-stats">
                       {chats} {chats === 1 ? 'chat' : 'chats'}
+                      <SavesCount listingId={l.id} />
                       {l.expiresAt && ` · Expires ${formatShortDate(l.expiresAt)}`}
                     </p>
                   </>
@@ -319,4 +321,19 @@ export default function MyListings() {
       )}
     </div>
   )
+}
+
+// "· 6 saves", counted from listings/{id}/saves (only the lister can read it).
+function SavesCount({ listingId }: { listingId: string }) {
+  const [n, setN] = useState<number | null>(null)
+  useEffect(() => {
+    let on = true
+    fetchSaveCount(listingId)
+      .then((c) => on && setN(c))
+      .catch(() => {})
+    return () => {
+      on = false
+    }
+  }, [listingId])
+  return n === null ? null : <>{` · ${n} ${n === 1 ? 'save' : 'saves'}`}</>
 }

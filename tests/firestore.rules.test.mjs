@@ -334,6 +334,65 @@ describe('listings: live', () => {
   })
 })
 
+describe('saved places', () => {
+  const jake = { email: 'jake@colostate.edu', email_verified: true }
+  const entry = () => ({
+    savedAt: serverTimestamp(),
+    title: 'Sunny room near Old Town',
+    rentCents: 65000,
+    thumbUrl: null,
+    availableFrom: '2027-01-06',
+    availableTo: '2027-05-15',
+    neighborhood: 'Campus West',
+  })
+  const save = (db, listingId = 'live') => {
+    const b = writeBatch(db)
+    b.set(doc(db, 'users/jake/saved', listingId), entry())
+    b.set(doc(db, 'listings', listingId, 'saves', 'jake'), { at: serverTimestamp() })
+    return b.commit()
+  }
+
+  beforeEach(async () => {
+    const base = { ...newDraft('maya', complete), createdAt: Timestamp.now(), updatedAt: Timestamp.now(), publishedAt: Timestamp.now(), expiresAt: inDays(30), listerFirstName: 'Maya', listerSince: 'Oct 2026' }
+    await seedListing('live', { ...base, status: 'active' })
+    await seedListing('gone', { ...base, status: 'filled' })
+  })
+
+  test('a verified student can save and unsave a live place', async () => {
+    const db = env.authenticatedContext('jake', jake).firestore()
+    await assertSucceeds(save(db))
+    await assertSucceeds(getDocs(collection(db, 'users/jake/saved')))
+    const b = writeBatch(db)
+    b.delete(doc(db, 'users/jake/saved/live'))
+    b.delete(doc(db, 'listings/live/saves/jake'))
+    await assertSucceeds(b.commit())
+  })
+
+  test("unverified students can't save, and nobody saves a place that isn't live", async () => {
+    await assertFails(save(env.authenticatedContext('jake', { ...jake, email_verified: false }).firestore()))
+    await assertFails(save(env.authenticatedContext('jake', jake).firestore(), 'gone'))
+  })
+
+  test("nobody can read or write someone else's saved list", async () => {
+    await assertSucceeds(save(env.authenticatedContext('jake', jake).firestore()))
+    const maya = env.authenticatedContext('maya', verifiedMaya).firestore()
+    await assertFails(getDocs(collection(maya, 'users/jake/saved')))
+    await assertFails(setDoc(doc(maya, 'users/jake/saved/live'), entry()))
+    await assertFails(deleteDoc(doc(maya, 'listings/live/saves/jake')))
+  })
+
+  test('only the lister can count saves', async () => {
+    await assertSucceeds(save(env.authenticatedContext('jake', jake).firestore()))
+    await assertSucceeds(getDocs(collection(env.authenticatedContext('maya', verifiedMaya).firestore(), 'listings/live/saves')))
+    await assertFails(getDocs(collection(env.authenticatedContext('jake', jake).firestore(), 'listings/live/saves')))
+  })
+
+  test("listers can't pad their own save count", async () => {
+    const db = env.authenticatedContext('maya', verifiedMaya).firestore()
+    await assertFails(setDoc(doc(db, 'listings/live/saves/maya'), { at: serverTimestamp() }))
+  })
+})
+
 describe('listings/{id}/private/location', () => {
   beforeEach(() => seedListing('l1', { ...newDraft('maya', complete), createdAt: Timestamp.now() }))
   const loc = { streetAddress: '1234 Elizabeth St', unit: 'Apt 2', exactLat: 40.5751, exactLng: -105.0901 }

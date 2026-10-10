@@ -1,3 +1,5 @@
+import Saved from './screens/Saved'
+import { SavedProvider } from './components/SavedProvider'
 import { Link, Outlet, Route, Routes } from 'react-router'
 import { Construction } from 'lucide-react'
 import { BottomNav, TopBar } from './components/Shell'
@@ -129,13 +131,21 @@ export default function App() {
     <AuthProvider>
       <ToastProvider>
         <InboxProvider>
+        <SavedProvider>
         <SignUpProvider>
         <SuspensionGate>
       <Routes>
         <Route element={<WithNav />}>
           <Route index element={<Home />} />
           <Route path="listings" element={<Browse />} />
-          <Route path="saved" element={<NotBuiltYet title="Saved" />} />
+          <Route
+            path="saved"
+            element={
+              <RequireVerified>
+                <Saved />
+              </RequireVerified>
+            }
+          />
           <Route
             path="messages"
             element={
@@ -198,6 +208,7 @@ export default function App() {
       </Routes>
         </SuspensionGate>
         </SignUpProvider>
+        </SavedProvider>
         </InboxProvider>
       </ToastProvider>
     </AuthProvider>
