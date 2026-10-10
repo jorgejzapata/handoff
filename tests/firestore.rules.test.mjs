@@ -74,7 +74,7 @@ describe('users/{uid}', () => {
           email: 'maya.r@colostate.edu',
           schoolId: 'csu',
           createdAt: new Date(),
-          status: 'active',
+          status: 'suspended',
         }),
       )
     })
@@ -96,6 +96,7 @@ describe('users/{uid}', () => {
       await assertFails(updateDoc(doc(db, 'users/maya'), { bio: 'x'.repeat(141) }))
     })
 
+    // The doc starts suspended, so this also proves a suspended student can't un-suspend themselves.
     test('owner cannot change email, school, status or createdAt', async () => {
       const db = env.authenticatedContext('maya', maya).firestore()
       await assertFails(updateDoc(doc(db, 'users/maya'), { email: 'new@colostate.edu' }))
