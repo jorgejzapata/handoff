@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
-import { PROD } from './src/firebaseProjects'
+import { PROD } from './src/firebaseProjects.ts'
 
 // `npm run build:prod` builds with --mode prod for handoffsublease.com.
 // Every other build (and `npm run dev`) is the dev project, which search
