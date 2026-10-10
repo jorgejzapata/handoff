@@ -981,3 +981,15 @@ button.metric-tile:hover { filter: brightness(0.97); }
 .gone-card .manage-thumb, .gone-card .card-title { opacity: 0.55; }
 .gone-text { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; min-width: 0; }
 .gone-text .card-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+
+/* ---- Terms, Privacy, Safety ---- */
+.legal-doc { gap: 16px; line-height: 1.6; }
+.legal-head { display: flex; flex-direction: column; gap: 4px; }
+.legal-toc { padding: 16px 20px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.legal-toc ol { list-style: decimal; padding-left: 20px; margin-top: 8px; display: grid; gap: 4px; }
+.legal-toc a { text-decoration: none; }
+.legal-toc a:hover, .legal-toc a:focus-visible { text-decoration: underline; }
+.legal-section { display: flex; flex-direction: column; gap: 10px; scroll-margin-top: 88px; padding-top: 8px; }
+.legal-caps { text-transform: uppercase; font-size: 13px; letter-spacing: 0.01em; }
+.legal-footnote { border-top: 1px solid var(--line); padding-top: 16px; }
+.resource-list a { white-space: nowrap; }

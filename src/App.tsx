@@ -1,7 +1,10 @@
+import Terms from './screens/legal/Terms'
+import Privacy from './screens/legal/Privacy'
+import Safety from './screens/legal/Safety'
+import Support from './screens/legal/Support'
 import Saved from './screens/Saved'
 import { SavedProvider } from './components/SavedProvider'
 import { Link, Outlet, Route, Routes } from 'react-router'
-import { Construction } from 'lucide-react'
 import { BottomNav, TopBar } from './components/Shell'
 import { SignUpProvider } from './components/SignUpSheet'
 import { AuthProvider } from './components/AuthProvider'
@@ -103,18 +106,6 @@ function RequireUser({ children }: { children: React.ReactNode }) {
   )
 }
 
-function NotBuiltYet({ title }: { title: string }) {
-  return (
-    <div className="page empty">
-      <Construction size={48} strokeWidth={1.5} aria-hidden="true" />
-      <p className="heading">{title} is coming soon.</p>
-      <Link to="/listings" className="btn btn-secondary">
-        Browse places
-      </Link>
-    </div>
-  )
-}
-
 function NotFound() {
   return (
     <div className="page empty">
@@ -172,10 +163,10 @@ export default function App() {
             }
           />
           <Route path="delete-account" element={<DeleteAccountInfo />} />
-          <Route path="safety" element={<NotBuiltYet title="Safety tips" />} />
-          <Route path="terms" element={<NotBuiltYet title="Terms" />} />
-          <Route path="privacy" element={<NotBuiltYet title="Privacy" />} />
-          <Route path="support" element={<NotBuiltYet title="Support" />} />
+          <Route path="safety" element={<Safety />} />
+          <Route path="terms" element={<Terms />} />
+          <Route path="privacy" element={<Privacy />} />
+          <Route path="support" element={<Support />} />
           <Route path="*" element={<NotFound />} />
         </Route>
         <Route element={<NoBottomNav />}>

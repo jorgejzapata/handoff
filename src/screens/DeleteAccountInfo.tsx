@@ -14,7 +14,8 @@ export default function DeleteAccountInfo() {
       <h2 className="heading">What gets deleted</h2>
       <ul className="legal-list">
         <li>Your listings, their photos and their exact addresses</li>
-        <li>Your profile: name, photo, year and bio</li>
+        <li>Your profile: name, photo, year, bio and gender</li>
+        <li>Your saved places</li>
         <li>Your blocked list and your login</li>
       </ul>
       <h2 className="heading">What stays</h2>

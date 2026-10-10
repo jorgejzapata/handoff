@@ -41,10 +41,19 @@ export function setTheme(t: Theme) {
   applyTheme(t)
 }
 
+// Browsers with Global Privacy Control turned on start with analytics off,
+// unless the student switches it back on in Account settings.
+function gpcOn() {
+  return typeof navigator !== 'undefined' && (navigator as { globalPrivacyControl?: boolean }).globalPrivacyControl === true
+}
+
 export function analyticsAllowed() {
-  return read(ANALYTICS_KEY) !== 'off'
+  const v = read(ANALYTICS_KEY)
+  if (v === 'off') return false
+  if (v === 'on') return true
+  return !gpcOn()
 }
 
 export function setAnalyticsAllowed(on: boolean) {
-  write(ANALYTICS_KEY, on ? null : 'off')
+  write(ANALYTICS_KEY, on ? (gpcOn() ? 'on' : null) : 'off')
 }
