@@ -78,15 +78,18 @@ function NavTab({
   label,
   gate,
   badge = 0,
+  round = false,
 }: {
   to: string
   icon: ReactNode
   label: string
   gate?: () => void
   badge?: number
+  // A round icon (the profile photo) shows active with a ring, not the pill.
+  round?: boolean
 }) {
   const pill = (
-    <span className="nav-pill">
+    <span className={round ? 'nav-pill nav-pill-round' : 'nav-pill'}>
       {icon}
       {badge > 0 && (
         <span className="nav-badge" aria-label={`${badge} unread`}>
@@ -139,6 +142,7 @@ export function BottomNav() {
           )
         }
         label={user ? 'Me' : 'Log in'}
+        round={!!user}
         gate={user ? undefined : () => open({ reason: 'login' })}
       />
     </nav>
