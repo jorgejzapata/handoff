@@ -617,11 +617,47 @@ describe('reports', () => {
   })
 })
 
-describe('listings: taking one down', () => {
+describe('listings: taking down, keeping up, relisting', () => {
   beforeEach(() => seedLiveListing())
+
   test('owner can take a live listing down', async () => {
     const db = env.authenticatedContext('maya', mayaVerified).firestore()
     await assertSucceeds(updateDoc(doc(db, 'listings/live'), { status: 'expired', updatedAt: serverTimestamp() }))
+  })
+
+  test('"Keep it up" pushes expiry out, at most 31 days', async () => {
+    const db = env.authenticatedContext('maya', mayaVerified).firestore()
+    await assertSucceeds(updateDoc(doc(db, 'listings/live'), { expiresAt: inDays(30), updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(db, 'listings/live'), { expiresAt: inDays(90), updatedAt: serverTimestamp() }))
+  })
+
+  test('owner can relist a filled or expired listing', async () => {
+    await seedListing('old', {
+      ...newDraft('maya', complete),
+      status: 'filled',
+      listerFirstName: 'Maya',
+      listerSince: 'Oct 2026',
+      filledViaHandoff: true,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    })
+    const db = env.authenticatedContext('maya', mayaVerified).firestore()
+    await assertSucceeds(
+      updateDoc(doc(db, 'listings/old'), {
+        status: 'active',
+        publishedAt: serverTimestamp(),
+        expiresAt: inDays(30),
+        updatedAt: serverTimestamp(),
+      }),
+    )
+  })
+
+  test("can't relist someone else's listing", async () => {
+    await seedListing('old', { ...newDraft('maya', complete), status: 'expired', listerFirstName: 'Maya', listerSince: 'Oct 2026', createdAt: Timestamp.now() })
+    const db = env.authenticatedContext('jake', { email: 'jake@colostate.edu', email_verified: true }).firestore()
+    await assertFails(
+      updateDoc(doc(db, 'listings/old'), { status: 'active', publishedAt: serverTimestamp(), expiresAt: inDays(30), updatedAt: serverTimestamp() }),
+    )
   })
 })
 

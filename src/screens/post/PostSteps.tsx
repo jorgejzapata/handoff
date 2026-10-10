@@ -346,7 +346,8 @@ export function StepPhotos({
   update,
   ensureDraft,
   onUploading,
-}: StepProps & { ensureDraft: EnsureDraft; onUploading: (n: number) => void }) {
+  deleteOnRemove = true,
+}: StepProps & { ensureDraft: EnsureDraft; onUploading: (n: number) => void; deleteOnRemove?: boolean }) {
   const photos = draft.photos ?? []
   const [uploads, setUploads] = useState<Upload[]>([])
   const photosRef = useRef(photos)
@@ -401,7 +402,8 @@ export function StepPhotos({
 
   function remove(photo: Photo) {
     update({ photos: photos.filter((p) => p.id !== photo.id) })
-    void deleteListingPhoto(photo)
+    // Editing a live listing deletes removed photos only once the edit is saved.
+    if (deleteOnRemove) void deleteListingPhoto(photo)
   }
 
   return (

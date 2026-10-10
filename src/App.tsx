@@ -8,6 +8,8 @@ import { InboxProvider } from './components/InboxProvider'
 import { useAuth } from './components/AuthProvider'
 import { useSignUp } from './components/SignUpSheet'
 import Messages from './screens/messages/Messages'
+import MyListings from './screens/MyListings'
+import EditListing from './screens/EditListing'
 import Home from './screens/Home'
 import Browse from './screens/Browse'
 import ListingDetail from './screens/ListingDetail'
@@ -57,7 +59,7 @@ function NoBottomNav() {
   )
 }
 
-// Messages need a verified CSU account.
+// Messages and listing management need a verified CSU account.
 function RequireVerified({ children }: { children: React.ReactNode }) {
   const { loading, user, verified } = useAuth()
   const { open } = useSignUp()
@@ -65,7 +67,7 @@ function RequireVerified({ children }: { children: React.ReactNode }) {
   if (verified) return <>{children}</>
   return (
     <div className="page empty">
-      <p className="heading">{user ? 'Verify your CSU email to see messages.' : 'Sign up to see your messages.'}</p>
+      <p className="heading">{user ? 'Verify your CSU email to keep going.' : 'Sign up or log in to keep going.'}</p>
       {user ? (
         <Link to="/verify" className="btn btn-primary">
           Verify my email
@@ -122,7 +124,14 @@ export default function App() {
             }
           />
           <Route path="me" element={<Me />} />
-          <Route path="me/listings" element={<NotBuiltYet title="Your listings" />} />
+          <Route
+            path="me/listings"
+            element={
+              <RequireVerified>
+                <MyListings />
+              </RequireVerified>
+            }
+          />
           <Route path="account" element={<NotBuiltYet title="Account settings" />} />
           <Route path="safety" element={<NotBuiltYet title="Safety tips" />} />
           <Route path="terms" element={<NotBuiltYet title="Terms" />} />
@@ -148,6 +157,14 @@ export default function App() {
           <Route path="onboarding" element={<ProfileSetup />} />
         </Route>
         <Route path="post" element={<PostListing />} />
+        <Route
+          path="me/listings/:id/edit"
+          element={
+            <RequireVerified>
+              <EditListing />
+            </RequireVerified>
+          }
+        />
       </Routes>
         </SignUpProvider>
         </InboxProvider>

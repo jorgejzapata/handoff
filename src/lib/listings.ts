@@ -74,6 +74,8 @@ export interface Listing {
   lister: Lister
   postedAt: string
   updatedAt: string
+  expiresAt: string // full ISO timestamp; '' for drafts
+  filledViaHandoff?: boolean
 }
 
 // What the wizard edits. Everything is optional until Publish.
@@ -219,6 +221,8 @@ export function snapshotToListing(snap: DocumentSnapshot): Listing | null {
     },
     postedAt: d.publishedAt instanceof Timestamp ? d.publishedAt.toDate().toISOString() : '',
     updatedAt: d.updatedAt instanceof Timestamp ? d.updatedAt.toDate().toISOString() : '',
+    expiresAt: d.expiresAt instanceof Timestamp ? d.expiresAt.toDate().toISOString() : '',
+    filledViaHandoff: typeof d.filledViaHandoff === 'boolean' ? d.filledViaHandoff : undefined,
   }
 }
 
@@ -256,6 +260,7 @@ export function draftToPreview(d: ListingDraft, lister: Lister, id = 'preview'):
     lister,
     postedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    expiresAt: '',
   }
 }
 
@@ -275,7 +280,8 @@ export async function fetchActiveListings(max = 100): Promise<Listing[]> {
     .map(snapshotToListing)
     .filter((l): l is Listing => !!l)
     // Hide listings past their move-out date until the expiry job exists.
-    .filter((l) => !l.availableTo || new Date(`${l.availableTo}T23:59:59Z`) >= now)
+    // Hide listings past expiry until a scheduled job flips their status.
+    .filter((l) => !isPastExpiry(l, now))
 }
 
 export async function fetchListing(id: string) {
@@ -403,4 +409,63 @@ export async function markListingFilled(id: string, viaHandoff: boolean) {
 
 export async function takeListingDown(id: string) {
   await updateDoc(doc(db, 'listings', id), { status: 'expired', updatedAt: serverTimestamp() })
+}
+
+// ---- My listings ----
+
+// Live in the database but past its expiry date: shown as expired everywhere.
+export function isPastExpiry(l: Listing, now = new Date()) {
+  if (l.status !== 'active') return false
+  if (l.expiresAt && new Date(l.expiresAt) < now) return true
+  return !!l.availableTo && new Date(`${l.availableTo}T23:59:59Z`) < now
+}
+
+// Days until a live listing expires (0 = today), or null.
+export function daysToExpiry(l: Listing, now = new Date()) {
+  if (l.status !== 'active' || !l.expiresAt) return null
+  return Math.ceil((new Date(l.expiresAt).getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+}
+
+export async function fetchMyListings(uid: string): Promise<Listing[]> {
+  const snap = await getDocs(query(collection(db, 'listings'), where('ownerId', '==', uid)))
+  return snap.docs
+    .map(snapshotToListing)
+    .filter((l): l is Listing => !!l)
+    .sort((a, b) => (b.updatedAt || b.postedAt).localeCompare(a.updatedAt || a.postedAt))
+}
+
+// The draft fields of a saved listing, for the edit form.
+export async function fetchListingDraft(id: string) {
+  const snap = await getDoc(doc(db, 'listings', id))
+  const data = snap.data()
+  return data ? firestoreToDraft(data) : null
+}
+
+// Saves edits to a live listing. Changing the dates resets its 30-day expiry.
+export async function saveListingEdits(id: string, changes: ListingDraft, availableTo?: string, resetExpiry = false) {
+  const patch: DocumentData = { ...draftToFirestore(changes), updatedAt: serverTimestamp() }
+  if ((resetExpiry || changes.availableFrom || changes.availableTo) && availableTo) patch.expiresAt = computeExpiry(availableTo)
+  await updateDoc(doc(db, 'listings', id), patch)
+}
+
+// "Still available?" -> Keep it up: another 30 days (or to move-out).
+export async function keepListingUp(id: string, availableTo: string) {
+  await updateDoc(doc(db, 'listings', id), { expiresAt: computeExpiry(availableTo), updatedAt: serverTimestamp() })
+}
+
+// Puts a filled or expired listing back up, with whatever was edited.
+export async function relistListing(id: string, changes: ListingDraft, availableTo: string) {
+  await updateDoc(doc(db, 'listings', id), {
+    ...draftToFirestore(changes),
+    status: 'active',
+    publishedAt: serverTimestamp(),
+    expiresAt: computeExpiry(availableTo),
+    updatedAt: serverTimestamp(),
+  })
+}
+
+// Deletes the listing, its private address and its photos. Chats stay.
+export async function deleteListing(l: Listing) {
+  await deleteDoc(doc(db, 'listings', l.id, 'private', 'location')).catch(() => {})
+  await deleteDoc(doc(db, 'listings', l.id))
 }

@@ -167,6 +167,13 @@ service cloud.firestore {
             && request.resource.data.filledAt == request.time
             && request.resource.data.filledViaHandoff is bool
             && !changed().hasAny(['publishedAt', 'expiresAt']))
+          // Relisting a filled or expired listing
+          || (resource.data.status in ['filled', 'expired'] && request.resource.data.status == 'active'
+            && isVerifiedCsu()
+            && publishable(request.resource.data)
+            && request.resource.data.publishedAt == request.time
+            && validExpiry(request.resource.data)
+            && !changed().hasAny(['filledAt', 'filledViaHandoff']))
           // Taking it down for another reason
           || (resource.data.status == 'active' && request.resource.data.status == 'expired'
             && changed().hasOnly(['status', 'updatedAt']))

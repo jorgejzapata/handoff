@@ -781,3 +781,34 @@ fieldset.chip-field > legend { padding: 0; margin-bottom: 8px; }
 }
 .attach-thumb { width: 48px; height: 48px; flex: none; border-radius: 8px; object-fit: cover; }
 .attach-pdf { display: grid; place-items: center; background: var(--sage-100); color: var(--forest-600); }
+
+/* ================= My listings ================= */
+.my-listings { max-width: 760px; padding-top: 20px; padding-bottom: 32px; }
+.my-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); margin-bottom: var(--space-4); }
+.attention { margin-bottom: 10px; }
+.attention-actions { margin-top: 10px; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 8px 0 var(--space-4); }
+.tab {
+  min-height: 44px; padding: 0 14px; font-weight: 500; color: var(--muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tab-on { color: var(--ink); font-weight: 700; border-bottom-color: var(--ink); }
+.tab-count { font-size: 12px; color: var(--muted); margin-left: 2px; }
+.empty-line { padding: 24px 0; text-align: center; }
+.manage-list { display: flex; flex-direction: column; gap: 12px; }
+.manage-card { padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+.manage-main { display: flex; gap: 12px; align-items: flex-start; }
+.manage-thumb { width: 88px; flex: none; aspect-ratio: 4 / 3; }
+.manage-thumb > svg { width: 20px; }
+.manage-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; align-items: flex-start; }
+.manage-text .card-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.manage-stats { margin-top: 10px; }
+.manage-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.manage-actions .menu-wrap { margin-left: auto; }
+.danger-link { color: var(--danger) !important; }
+.link-btn.danger-link { min-height: 40px; padding: 0 8px; }
+
+/* ================= Edit listing ================= */
+.edit-section { padding-top: 28px; margin-top: 20px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.edit-section > .heading { font-size: 20px; line-height: 24px; }
+.edit-section .form-stack { margin-top: 8px; }
