@@ -66,7 +66,6 @@ export function Thread({ id }: { id: string }) {
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
-  const bottom = useRef<HTMLDivElement>(null)
   const composer = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => subscribeConversation(id, setConv, () => setLoadError(true)), [id])
@@ -78,9 +77,41 @@ export function Thread({ id }: { id: string }) {
     markRead(conv, me).catch(() => {})
   }, [conv, me])
 
+  // Keep the newest message in view: jump to the bottom when the chat opens,
+  // and stay there as messages arrive, photos load or the keyboard opens,
+  // unless the student has scrolled up to read older messages.
+  const body = useRef<HTMLDivElement>(null)
+  const stick = useRef(true)
+  const loaded = !!conv && messages.length > 0
+
+  useEffect(() => {
+    stick.current = true
+  }, [id])
+
   useLayoutEffect(() => {
-    bottom.current?.scrollIntoView({ block: 'end' })
-  }, [messages.length])
+    const el = body.current
+    if (el && stick.current) el.scrollTop = el.scrollHeight
+  }, [loaded, messages.length, pendingFile])
+
+  useEffect(() => {
+    const el = body.current
+    if (!el) return
+    const toBottom = () => {
+      if (stick.current) el.scrollTop = el.scrollHeight
+    }
+    // Images don't bubble load events, so listen in the capture phase.
+    el.addEventListener('load', toBottom, true)
+    window.visualViewport?.addEventListener('resize', toBottom)
+    return () => {
+      el.removeEventListener('load', toBottom, true)
+      window.visualViewport?.removeEventListener('resize', toBottom)
+    }
+  }, [loaded])
+
+  function onBodyScroll() {
+    const el = body.current
+    if (el) stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  }
 
   // Composer grows with the text, up to 5 lines.
   useLayoutEffect(() => {
@@ -111,6 +142,7 @@ export function Thread({ id }: { id: string }) {
 
   async function send(text = draft, type: 'text' | 'address' = 'text') {
     if (!conv || sending) return
+    stick.current = true // sending always jumps to your new message
     // A photo or PDF goes out with whatever's typed as its caption.
     if (type === 'text' && pendingFile) {
       if (!pendingFile.attachment) return
@@ -275,7 +307,7 @@ export function Thread({ id }: { id: string }) {
         )}
       </div>
 
-      <div className="thread-body" onClick={() => overlay === 'menu' && setOverlay(null)}>
+      <div ref={body} className="thread-body" onScroll={onBodyScroll} onClick={() => overlay === 'menu' && setOverlay(null)}>
         <p className="notice caption thread-safety">
           <ShieldAlert size={18} strokeWidth={1.5} aria-hidden="true" />
           <span>
@@ -370,7 +402,6 @@ export function Thread({ id }: { id: string }) {
             </div>
           )
         })}
-        <div ref={bottom} />
       </div>
 
       {closed ? (
