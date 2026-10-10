@@ -400,3 +400,46 @@
   .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 48px; padding: 0 var(--space-6); }
   .sticky-card { position: sticky; top: 96px; margin-top: 24px; display: flex; flex-direction: column; gap: 14px; }
 }
+
+/* ================= Auth ================= */
+.field-error .input { border-color: var(--danger); background: var(--danger-100); }
+.field-msg, .form-error { color: var(--danger); font: 500 12px/16px var(--font-body); }
+.form-error { padding: 10px 14px; background: var(--danger-100); border-radius: var(--radius-md); font-size: 13px; line-height: 18px; }
+
+.verify {
+  max-width: 440px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: 12px;
+  padding-top: 48px; padding-bottom: 48px;
+}
+.verify-icon { color: var(--forest-600); margin-bottom: 4px; }
+.verify-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.verify-actions .center-block { margin-bottom: 0; }
+
+.avatar-sm { width: 40px; height: 40px; font-size: 17px; }
+
+.me { max-width: 640px; padding-top: 24px; }
+.me-head { display: flex; gap: 14px; align-items: center; padding-bottom: var(--space-6); }
+.me-head .avatar { width: 64px; height: 64px; font-size: 26px; }
+.unverified { display: inline-flex; align-items: center; gap: 4px; color: var(--danger); font: 500 13px/18px var(--font-body); min-height: 28px; }
+.menu { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.menu-row {
+  display: flex; align-items: center; gap: 14px;
+  min-height: 56px; width: 100%; text-align: left;
+  border-bottom: 1px solid var(--line);
+  font-weight: 500;
+}
+.menu-row > span:first-child, .menu-row > svg:first-child { color: var(--forest-600); }
+.menu-chevron { margin-left: auto; color: var(--muted); }
+
+.toast-region {
+  position: fixed; left: 0; right: 0; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 60;
+  display: flex; justify-content: center; pointer-events: none; padding: 0 var(--space-4);
+}
+.toast {
+  max-width: 440px; padding: 12px 18px;
+  background: var(--ink); color: var(--canvas);
+  border-radius: var(--radius-md);
+  font: 500 14px/20px var(--font-body);
+  animation: sheet-up 0.2s ease;
+}
+@media (min-width: 1024px) { .toast-region { bottom: 32px; } }

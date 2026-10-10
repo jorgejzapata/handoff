@@ -1,11 +1,59 @@
 rules_version = '2';
 
-// Locked down until the real rules from the MVP spec are written.
-// The emulators and Cloud Functions (Admin SDK) are not affected by this.
+// Handoff Firestore rules. Anything not matched below is denied.
+// Cloud Functions use the Admin SDK and are not affected by these rules.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // A verified CSU email: colostate.edu or rams.colostate.edu.
+    // Used by listings and messages once those collections exist.
+    function isVerifiedCsu() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower().matches('.*@(rams[.])?colostate[.]edu');
+    }
+
+    function isShortString(v, min, max) {
+      return v is string && v.size() >= min && v.size() <= max;
+    }
+
+    // ---- users/{uid} ----
+    // Private to its owner for now: it holds the email. Public profile fields
+    // (first name, photo, year) get exposed separately when listings need them.
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(
+             ['firstName', 'email', 'schoolId', 'onboardingStep', 'createdAt', 'lastActiveAt'])
+        && request.resource.data.keys().hasAll(['firstName', 'email', 'schoolId', 'createdAt'])
+        && isShortString(request.resource.data.firstName, 1, 40)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.schoolId == 'csu'
+        && request.resource.data.createdAt == request.time
+        && (!('lastActiveAt' in request.resource.data) || request.resource.data.lastActiveAt == request.time)
+        && (!('onboardingStep' in request.resource.data) || isShortString(request.resource.data.onboardingStep, 1, 20));
+
+      // Owners can edit profile fields only. email, schoolId, createdAt and
+      // status (set by Cloud Functions on suspension) are off limits.
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+             ['firstName', 'photoUrl', 'gradYear', 'bio', 'notificationPrefs', 'onboardingStep', 'lastActiveAt'])
+        && (!('firstName' in request.resource.data) || isShortString(request.resource.data.firstName, 1, 40))
+        && (!('bio' in request.resource.data) || isShortString(request.resource.data.bio, 0, 140))
+        && (!('photoUrl' in request.resource.data) || isShortString(request.resource.data.photoUrl, 1, 1000))
+        && (!('gradYear' in request.resource.data) || request.resource.data.gradYear is string);
+
+      // Account deletion goes through a Cloud Function later.
+      allow delete: if false;
     }
   }
 }

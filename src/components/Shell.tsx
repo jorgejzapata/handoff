@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router'
 import { Heart, MessageCircle, Plus, Search, User } from 'lucide-react'
+import { useAuth } from './AuthProvider'
 import { useSignUp } from './SignUpSheet'
 
 export function Mark({ size = 28 }: { size?: number }) {
@@ -14,7 +15,10 @@ export function Mark({ size = 28 }: { size?: number }) {
   )
 }
 
-export function TopBar({ right }: { right?: ReactNode }) {
+export function TopBar() {
+  const { user, loading } = useAuth()
+  const { open } = useSignUp()
+  const name = user?.displayName || 'Me'
   return (
     <header className="topbar">
       <Link to="/" className="brand" aria-label="Handoff home">
@@ -26,9 +30,18 @@ export function TopBar({ right }: { right?: ReactNode }) {
         <NavLink to="/saved">Saved</NavLink>
         <NavLink to="/messages">Messages</NavLink>
       </nav>
-      <div className="topbar-right">
-        {right}
-        <Link to="/post" className="btn btn-primary btn-sm desktop-only">
+      <div className="topbar-right desktop-only">
+        {!loading &&
+          (user ? (
+            <Link to="/me" className="avatar avatar-sm" aria-label={`${name}, your account`}>
+              {name[0]}
+            </Link>
+          ) : (
+            <button type="button" className="text-link" onClick={() => open({ reason: 'login' })}>
+              Log in
+            </button>
+          ))}
+        <Link to="/post" className="btn btn-primary btn-sm">
           Post your place
         </Link>
       </div>
@@ -38,37 +51,46 @@ export function TopBar({ right }: { right?: ReactNode }) {
 
 const ICON = { size: 22, strokeWidth: 1.5 } as const
 
+// Signed out (or not verified yet), Saved, Messages and Me open the sign-up sheet.
+function NavTab({ to, icon, label, gate }: { to: string; icon: ReactNode; label: string; gate?: () => void }) {
+  if (gate) {
+    return (
+      <button type="button" className="nav-item" onClick={gate}>
+        <span className="nav-pill">{icon}</span>
+        {label}
+      </button>
+    )
+  }
+  return (
+    <NavLink to={to} className="nav-item">
+      <span className="nav-pill">{icon}</span>
+      {label}
+    </NavLink>
+  )
+}
+
 export function BottomNav() {
+  const { user, verified } = useAuth()
   const { open } = useSignUp()
   return (
     <nav className="bottom-nav" aria-label="Main">
-      <NavLink to="/listings" className="nav-item">
-        <span className="nav-pill">
-          <Search {...ICON} />
-        </span>
-        Browse
-      </NavLink>
-      <button type="button" className="nav-item" onClick={() => open({ reason: 'save' })}>
-        <span className="nav-pill">
-          <Heart {...ICON} />
-        </span>
-        Saved
-      </button>
+      <NavTab to="/listings" icon={<Search {...ICON} />} label="Browse" />
+      <NavTab to="/saved" icon={<Heart {...ICON} />} label="Saved" gate={verified ? undefined : () => open({ reason: 'save' })} />
       <Link to="/post" className="nav-post" aria-label="Post your place">
         <Plus size={24} strokeWidth={2} />
       </Link>
-      <button type="button" className="nav-item" onClick={() => open({ reason: 'messages' })}>
-        <span className="nav-pill">
-          <MessageCircle {...ICON} />
-        </span>
-        Messages
-      </button>
-      <button type="button" className="nav-item" onClick={() => open({ reason: 'login' })}>
-        <span className="nav-pill">
-          <User {...ICON} />
-        </span>
-        Log in
-      </button>
+      <NavTab
+        to="/messages"
+        icon={<MessageCircle {...ICON} />}
+        label="Messages"
+        gate={verified ? undefined : () => open({ reason: 'messages' })}
+      />
+      <NavTab
+        to="/me"
+        icon={<User {...ICON} />}
+        label={user ? 'Me' : 'Log in'}
+        gate={user ? undefined : () => open({ reason: 'login' })}
+      />
     </nav>
   )
 }
