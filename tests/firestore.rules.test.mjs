@@ -248,9 +248,9 @@ describe('listings: publishing', () => {
     await assertFails(updateDoc(doc(db, 'listings/l3'), publishPatch()))
   })
 
-  test('expiry can be at most 31 days out', async () => {
+  test('expiry can be at most about 3 months out', async () => {
     const db = env.authenticatedContext('maya', verifiedMaya).firestore()
-    await assertFails(updateDoc(doc(db, 'listings/l1'), { ...publishPatch(), expiresAt: inDays(60) }))
+    await assertFails(updateDoc(doc(db, 'listings/l1'), { ...publishPatch(), expiresAt: inDays(120) }))
   })
 })
 
@@ -625,10 +625,10 @@ describe('listings: taking down, keeping up, relisting', () => {
     await assertSucceeds(updateDoc(doc(db, 'listings/live'), { status: 'expired', updatedAt: serverTimestamp() }))
   })
 
-  test('"Keep it up" pushes expiry out, at most 31 days', async () => {
+  test('"Keep it up" pushes expiry out, at most about 3 months', async () => {
     const db = env.authenticatedContext('maya', mayaVerified).firestore()
     await assertSucceeds(updateDoc(doc(db, 'listings/live'), { expiresAt: inDays(30), updatedAt: serverTimestamp() }))
-    await assertFails(updateDoc(doc(db, 'listings/live'), { expiresAt: inDays(90), updatedAt: serverTimestamp() }))
+    await assertFails(updateDoc(doc(db, 'listings/live'), { expiresAt: inDays(120), updatedAt: serverTimestamp() }))
   })
 
   test('owner can relist a filled or expired listing', async () => {

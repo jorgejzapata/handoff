@@ -86,7 +86,7 @@ export default function EditListing() {
     setSaving(true)
     try {
       if (relisting && listing!.status === 'active') {
-        // Still "active" in the database, just past its expiry: a fresh 30 days.
+        // Still "active" in the database, just past its expiry: a fresh 3 months.
         await saveListingEdits(listing!.id, changes, draft.availableTo, true)
       } else if (relisting) {
         await relistListing(listing!.id, changes, draft.availableTo!)
@@ -154,7 +154,7 @@ export default function EditListing() {
           </p>
         )}
         {draft.availableFrom !== original.availableFrom || draft.availableTo !== original.availableTo ? (
-          <p className="caption muted">New dates reset your listing's 30-day expiry.</p>
+          <p className="caption muted">New dates reset your listing's 3-month expiry.</p>
         ) : null}
       </main>
 

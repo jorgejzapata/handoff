@@ -114,11 +114,11 @@ service cloud.firestore {
         && d.leaseAckAt is timestamp;
     }
 
-    // Move-out date or 30 days out, whichever is sooner; never more than 31 days.
+    // Move-out date or 3 months (90 days) out, whichever is sooner; never more than 92 days.
     function validExpiry(d) {
       return d.expiresAt is timestamp
         && d.expiresAt > request.time
-        && d.expiresAt <= request.time + duration.value(31, 'd');
+        && d.expiresAt <= request.time + duration.value(92, 'd');
     }
 
     function changed() {

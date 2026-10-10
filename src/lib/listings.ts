@@ -155,9 +155,11 @@ export function listerSince(date = new Date()) {
   return sinceFmt.format(date)
 }
 
-// A listing expires on its move-out date or 30 days after its last update, whichever is sooner.
+// A listing stays up for 3 months from publishing (or its last check-in),
+// or until its move-out date, whichever is sooner.
+export const LISTING_LIFETIME_DAYS = 90
 export function computeExpiry(availableToIso: string, now = new Date()) {
-  const thirty = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const thirty = new Date(now.getTime() + LISTING_LIFETIME_DAYS * 24 * 60 * 60 * 1000)
   const moveOut = new Date(`${availableToIso}T23:59:59Z`)
   return Timestamp.fromDate(moveOut < thirty ? moveOut : thirty)
 }
@@ -455,14 +457,14 @@ export async function fetchListingDraft(id: string) {
   return data ? firestoreToDraft(data) : null
 }
 
-// Saves edits to a live listing. Changing the dates resets its 30-day expiry.
+// Saves edits to a live listing. Changing the dates resets its 3-month expiry.
 export async function saveListingEdits(id: string, changes: ListingDraft, availableTo?: string, resetExpiry = false) {
   const patch: DocumentData = { ...draftToFirestore(changes), updatedAt: serverTimestamp() }
   if ((resetExpiry || changes.availableFrom || changes.availableTo) && availableTo) patch.expiresAt = computeExpiry(availableTo)
   await updateDoc(doc(db, 'listings', id), patch)
 }
 
-// "Still available?" -> Keep it up: another 30 days (or to move-out).
+// "Still available?" -> Keep it up: another 3 months (or to move-out).
 export async function keepListingUp(id: string, availableTo: string) {
   await updateDoc(doc(db, 'listings', id), { expiresAt: computeExpiry(availableTo), updatedAt: serverTimestamp() })
 }
