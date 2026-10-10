@@ -7,8 +7,12 @@
     "dev": "vite",
     "emulators": "firebase emulators:start --only auth,firestore,storage --import=./.emulator-data --export-on-exit",
     "build": "tsc -b && vite build",
+    "build:prod": "tsc -b && vite build --mode prod",
     "preview": "vite preview",
-    "deploy": "npm run build && firebase deploy --only hosting",
+    "deploy": "npm run build && firebase deploy --only hosting -P dev",
+    "deploy:prod": "npm run build:prod && firebase deploy --only hosting -P prod",
+    "deploy:rules": "firebase deploy --only firestore,storage -P dev",
+    "deploy:rules:prod": "firebase deploy --only firestore,storage -P prod",
     "test:rules": "firebase emulators:exec --only firestore,storage --project demo-handoff-rules 'node --test tests/*.test.mjs'"
   },
   "dependencies": {

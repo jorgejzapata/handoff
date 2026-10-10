@@ -10,18 +10,11 @@ import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
 import { connectStorageEmulator, getStorage } from 'firebase/storage'
 import { getAnalytics, isSupported, setAnalyticsCollectionEnabled } from 'firebase/analytics'
 import { analyticsAllowed } from './settings'
+import { DEV, PROD } from '../firebaseProjects'
 
-// Web config for handoff-dev. This is not a secret: it ships in every
-// Firebase web app. Security comes from the rules files, not from hiding this.
-const firebaseConfig = {
-  apiKey: 'AIzaSyBomTmhpE6oxU5IJwxB29XCbxP8xX6wfDk',
-  authDomain: 'handoff-dev-e63cc.firebaseapp.com',
-  projectId: 'handoff-dev-e63cc',
-  storageBucket: 'handoff-dev-e63cc.firebasestorage.app',
-  messagingSenderId: '319974667369',
-  appId: '1:319974667369:web:a643fa69d29cfa4dac9ef8',
-  measurementId: 'G-P6K8KV93PM',
-}
+// handoff-dev for testing; handoff-prod (via npm run build:prod) for handoffsublease.com.
+export const isProd = import.meta.env.MODE === 'prod'
+const firebaseConfig = isProd ? PROD : DEV
 
 export const app = initializeApp(firebaseConfig)
 // Stay signed in until you log out: the session lives in IndexedDB (or
