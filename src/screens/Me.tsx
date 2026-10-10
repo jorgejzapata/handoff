@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { BadgeCheck, ChevronRight, CircleAlert, FileText, House, LogOut, Settings, ShieldCheck } from 'lucide-react'
+import { BadgeCheck, ChartColumn, ChevronRight, CircleAlert, FileText, House, LogOut, Settings, ShieldCheck } from 'lucide-react'
+import { checkIsAdmin } from '../lib/admin'
 import { useAuth } from '../components/AuthProvider'
 import { useSignUp } from '../components/SignUpSheet'
 import { useToast } from '../components/Toast'
@@ -10,6 +12,10 @@ export default function Me() {
   const { open } = useSignUp()
   const navigate = useNavigate()
   const toast = useToast()
+  const [isAdmin, setIsAdmin] = useState(false)
+  useEffect(() => {
+    checkIsAdmin(user).then(setIsAdmin)
+  }, [user])
 
   if (loading) return null
 
@@ -69,6 +75,7 @@ export default function Me() {
         <MenuRow to="/account" icon={<Settings size={20} strokeWidth={1.5} />} label="Account settings" />
         <MenuRow to="/safety" icon={<ShieldCheck size={20} strokeWidth={1.5} />} label="Safety tips" />
         <MenuRow to="/terms" icon={<FileText size={20} strokeWidth={1.5} />} label="Terms and privacy" />
+        {isAdmin && <MenuRow to="/admin" icon={<ChartColumn size={20} strokeWidth={1.5} />} label="Admin" />}
         <button type="button" className="menu-row" onClick={onLogOut}>
           <LogOut size={20} strokeWidth={1.5} aria-hidden="true" />
           <span>Log out</span>

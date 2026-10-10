@@ -76,6 +76,9 @@ export interface Listing {
   updatedAt: string
   expiresAt: string // full ISO timestamp; '' for drafts
   filledViaHandoff?: boolean
+  filledAt?: string
+  createdAt?: string
+  moderationReason?: string
 }
 
 // What the wizard edits. Everything is optional until Publish.
@@ -239,6 +242,9 @@ export function snapshotToListing(snap: DocumentSnapshot): Listing | null {
     updatedAt: d.updatedAt instanceof Timestamp ? d.updatedAt.toDate().toISOString() : '',
     expiresAt: d.expiresAt instanceof Timestamp ? d.expiresAt.toDate().toISOString() : '',
     filledViaHandoff: typeof d.filledViaHandoff === 'boolean' ? d.filledViaHandoff : undefined,
+    filledAt: d.filledAt instanceof Timestamp ? d.filledAt.toDate().toISOString() : undefined,
+    createdAt: d.createdAt instanceof Timestamp ? d.createdAt.toDate().toISOString() : undefined,
+    moderationReason: d.moderationReason || undefined,
   }
 }
 

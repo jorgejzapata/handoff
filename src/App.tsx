@@ -12,6 +12,8 @@ import MyListings from './screens/MyListings'
 import EditListing from './screens/EditListing'
 import Account from './screens/Account'
 import DeleteAccountInfo from './screens/DeleteAccountInfo'
+import AdminGate from './screens/admin/Admin'
+import { SuspensionGate } from './components/SuspensionGate'
 import Home from './screens/Home'
 import Browse from './screens/Browse'
 import ListingDetail from './screens/ListingDetail'
@@ -128,6 +130,7 @@ export default function App() {
       <ToastProvider>
         <InboxProvider>
         <SignUpProvider>
+        <SuspensionGate>
       <Routes>
         <Route element={<WithNav />}>
           <Route index element={<Home />} />
@@ -181,6 +184,7 @@ export default function App() {
           <Route path="verified" element={<Verified />} />
           <Route path="post/live/:id" element={<PostLive />} />
           <Route path="onboarding" element={<ProfileSetup />} />
+          <Route path="admin" element={<AdminGate />} />
         </Route>
         <Route path="post" element={<PostListing />} />
         <Route
@@ -192,6 +196,7 @@ export default function App() {
           }
         />
       </Routes>
+        </SuspensionGate>
         </SignUpProvider>
         </InboxProvider>
       </ToastProvider>

@@ -15,10 +15,20 @@ service cloud.firestore {
 
     // A verified CSU email: colostate.edu or rams.colostate.edu.
     // Used by listings and messages once those collections exist.
+    // A verified CSU email whose account isn't suspended.
     function isVerifiedCsu() {
       return signedIn()
         && request.auth.token.email_verified == true
-        && request.auth.token.email.lower().matches('.*@(rams[.])?colostate[.]edu');
+        && request.auth.token.email.lower().matches('.*@(rams[.])?colostate[.]edu')
+        && !exists(/databases/$(database)/documents/suspensions/$(request.auth.uid));
+    }
+
+    // Admins: an admins/{uid} doc (added in the Firebase console) or an
+    // admin custom claim. Nobody can make themselves an admin from the app.
+    function isAdmin() {
+      return signedIn()
+        && (request.auth.token.get('admin', false) == true
+          || exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
     }
 
     function isShortString(v, min, max) {
@@ -29,7 +39,7 @@ service cloud.firestore {
     // Private to its owner for now: it holds the email. Public profile fields
     // (first name, photo, year) get exposed separately when listings need them.
     match /users/{uid} {
-      allow read: if isOwner(uid);
+      allow read: if isOwner(uid) || isAdmin();
 
       allow create: if isOwner(uid)
         && request.resource.data.keys().hasOnly(
@@ -127,7 +137,17 @@ service cloud.firestore {
 
     match /listings/{listingId} {
       allow get, list: if resource.data.status == 'active'
-        || (signedIn() && resource.data.ownerId == request.auth.uid);
+        || (signedIn() && resource.data.ownerId == request.auth.uid)
+        || isAdmin();
+
+      // Moderation: admins hide, remove or restore a listing. Nothing else.
+      allow update: if isAdmin()
+        && changed().hasOnly(['status', 'updatedAt', 'moderatedBy', 'moderatedAt', 'moderationReason'])
+        && request.resource.data.status in ['hidden', 'removed', 'active']
+        && (request.resource.data.status != 'active' || resource.data.status == 'hidden')
+        && request.resource.data.moderatedBy == request.auth.uid
+        && request.resource.data.moderatedAt == request.time
+        && isShortString(request.resource.data.moderationReason, 1, 300);
 
       allow create: if signedIn()
         && request.resource.data.ownerId == request.auth.uid
@@ -409,7 +429,51 @@ service cloud.firestore {
         && request.resource.data.status == 'open'
         && request.resource.data.createdAt == request.time;
 
-      allow read, update: if signedIn() && request.auth.token.admin == true;
+      allow read: if isAdmin();
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt', 'adminNote'])
+        && request.resource.data.status in ['open', 'actioned', 'dismissed']
+        && request.resource.data.reviewedBy == request.auth.uid
+        && request.resource.data.reviewedAt == request.time
+        && (!('adminNote' in request.resource.data) || isShortString(request.resource.data.adminNote, 0, 500));
+    }
+
+    // ---- Admin ----
+    match /admins/{uid} {
+      allow read: if isOwner(uid);
+      allow write: if false; // console or Admin SDK only
+    }
+
+    // A suspended student can read their own suspension (to see why);
+    // admins create and lift them.
+    match /suspensions/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create, update: if isAdmin()
+        && uid != request.auth.uid
+        && request.resource.data.keys().hasOnly(['reason', 'by', 'at'])
+        && isShortString(request.resource.data.reason, 1, 300)
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time;
+      allow delete: if isAdmin();
+    }
+
+    // Every admin action, with who, when and why. Append-only.
+    match /adminActions/{actionId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['adminId', 'action', 'targetType', 'targetId', 'reason', 'at'])
+        && request.resource.data.adminId == request.auth.uid
+        && request.resource.data.action in ['hide', 'unhide', 'remove', 'suspend', 'unsuspend', 'dismiss', 'resolve']
+        && request.resource.data.targetType in ['listing', 'user', 'report']
+        && isShortString(request.resource.data.targetId, 1, 300)
+        && isShortString(request.resource.data.reason, 1, 300)
+        && request.resource.data.at == request.time;
+      allow update, delete: if false;
+    }
+
+    // Admin metrics: total views across listings.
+    match /{path=**}/views/{viewId} {
+      allow read: if isAdmin();
     }
   }
 }

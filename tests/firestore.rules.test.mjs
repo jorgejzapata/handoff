@@ -721,6 +721,70 @@ describe('listings: taking down, keeping up, relisting', () => {
   })
 })
 
+describe('admin', () => {
+  const adminAuth = { email: 'jorge@colostate.edu', email_verified: true }
+  beforeEach(async () => {
+    await seedLiveListing()
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'admins/jorge'), { addedAt: Timestamp.now() })
+      await setDoc(doc(ctx.firestore(), 'reports/r1'), {
+        reporterId: 'jake', targetType: 'listing', targetId: 'live', reason: 'scam', details: '', status: 'open', createdAt: Timestamp.now(),
+      })
+    })
+  })
+  const adminDb = () => env.authenticatedContext('jorge', adminAuth).firestore()
+  const moderate = (status, extra = {}) => ({
+    status, updatedAt: serverTimestamp(), moderatedBy: 'jorge', moderatedAt: serverTimestamp(), moderationReason: 'Reported as a scam', ...extra,
+  })
+
+  test('nobody can make themselves an admin', async () => {
+    await assertFails(setDoc(doc(env.authenticatedContext('jake', jakeVerified).firestore(), 'admins/jake'), { x: 1 }))
+  })
+
+  test('admins (by admins/{uid} doc) read reports and listings in any status', async () => {
+    await assertSucceeds(getDoc(doc(adminDb(), 'reports/r1')))
+    await seedListing('hidden1', { ...newDraft('maya', complete), status: 'hidden', createdAt: Timestamp.now() })
+    await assertSucceeds(getDoc(doc(adminDb(), 'listings/hidden1')))
+    await assertSucceeds(getDocs(collection(adminDb(), 'users')))
+  })
+
+  test('admins can hide, restore and remove a listing, with a reason', async () => {
+    await assertSucceeds(updateDoc(doc(adminDb(), 'listings/live'), moderate('hidden')))
+    await assertSucceeds(updateDoc(doc(adminDb(), 'listings/live'), moderate('active')))
+    await assertSucceeds(updateDoc(doc(adminDb(), 'listings/live'), moderate('removed')))
+    await assertFails(updateDoc(doc(adminDb(), 'listings/live'), moderate('active'))) // removed is final
+  })
+
+  test("admins can't edit listing content, and non-admins can't moderate", async () => {
+    await assertFails(updateDoc(doc(adminDb(), 'listings/live'), { ...moderate('hidden'), rentCents: 100 }))
+    await assertFails(updateDoc(doc(env.authenticatedContext('jake', jakeVerified).firestore(), 'listings/live'), { ...moderate('hidden'), moderatedBy: 'jake' }))
+  })
+
+  test('admins resolve reports', async () => {
+    await assertSucceeds(updateDoc(doc(adminDb(), 'reports/r1'), { status: 'actioned', reviewedBy: 'jorge', reviewedAt: serverTimestamp(), adminNote: 'Hid it' }))
+  })
+
+  test('a suspended student can no longer post, message or report', async () => {
+    await assertSucceeds(setDoc(doc(adminDb(), 'suspensions/jake'), { reason: 'Scam messages', by: 'jorge', at: serverTimestamp() }))
+    const jakeDb = env.authenticatedContext('jake', jakeVerified).firestore()
+    await assertSucceeds(getDoc(doc(jakeDb, 'suspensions/jake')))
+    await assertFails(startAs(jakeVerified, 'jake'))
+    await assertFails(addDoc(collection(jakeDb, 'reports'), {
+      reporterId: 'jake', targetType: 'listing', targetId: 'live', reason: 'scam', details: '', status: 'open', createdAt: serverTimestamp(),
+    }))
+  })
+
+  test('admin actions are logged and append-only', async () => {
+    const ref = await addDoc(collection(adminDb(), 'adminActions'), {
+      adminId: 'jorge', action: 'hide', targetType: 'listing', targetId: 'live', reason: 'Reported as a scam', at: serverTimestamp(),
+    })
+    await assertFails(updateDoc(ref, { reason: 'edited' }))
+    await assertFails(addDoc(collection(env.authenticatedContext('jake', jakeVerified).firestore(), 'adminActions'), {
+      adminId: 'jake', action: 'hide', targetType: 'listing', targetId: 'live', reason: 'x', at: serverTimestamp(),
+    }))
+  })
+})
+
 describe('everything else', () => {
   test('unknown collections are denied, even for verified students', async () => {
     const db = env.authenticatedContext('maya', { email: 'maya.r@colostate.edu', email_verified: true }).firestore()
