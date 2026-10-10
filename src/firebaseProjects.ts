@@ -12,14 +12,13 @@ export const DEV = {
   measurementId: 'G-P6K8KV93PM',
 }
 
-// Paste handoff-prod's web config here (Project settings → Your apps).
-// authDomain stays as Firebase gives it (handoff-prod-xxxx.firebaseapp.com).
+// handoff-prod: real students at handoffsublease.com.
 export const PROD = {
-  apiKey: '',
-  authDomain: '',
-  projectId: '',
-  storageBucket: '',
-  messagingSenderId: '',
-  appId: '',
-  measurementId: '',
+  apiKey: 'AIzaSyBRo-Vi0uUr_vnoAh3C5bLJ8YQeowN_2UA',
+  authDomain: 'handoff-prod-50bc0.firebaseapp.com',
+  projectId: 'handoff-prod-50bc0',
+  storageBucket: 'handoff-prod-50bc0.firebasestorage.app',
+  messagingSenderId: '736247325886',
+  appId: '1:736247325886:web:8a03776ace8adae36aaaef',
+  measurementId: 'G-XKEQ0RSCFJ',
 }

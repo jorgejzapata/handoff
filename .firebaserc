@@ -2,6 +2,6 @@
   "projects": {
     "default": "handoff-dev-e63cc",
     "dev": "handoff-dev-e63cc",
-    "prod": "handoff-prod"
+    "prod": "handoff-prod-50bc0"
   }
 }
