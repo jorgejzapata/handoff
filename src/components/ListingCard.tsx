@@ -1,15 +1,27 @@
 import { Link } from 'react-router'
 import { Heart, ImageIcon } from 'lucide-react'
-import type { Listing } from '../data/sampleListings'
-import { formatDates, formatRent, typeLine } from '../data/sampleListings'
+import type { Listing } from '../lib/listings'
+import { distanceLabel, formatDates, formatRent, typeLine } from '../lib/format'
 import { useSignUp } from './SignUpSheet'
 
-// Stands in for listing photos until uploads exist.
-export function PhotoPlaceholder({ tone, label, className = '' }: { tone: string; label: string; className?: string }) {
+export function ListingPhoto({ listing, className = '' }: { listing: Listing; className?: string }) {
+  const photo = listing.photos[0]
+  if (!photo) {
+    return (
+      <div className={`photo ${className}`} role="img" aria-label="No photo yet">
+        <ImageIcon size={28} strokeWidth={1.5} aria-hidden="true" />
+      </div>
+    )
+  }
   return (
-    <div className={`photo ${className}`} style={{ background: tone }} role="img" aria-label={label}>
-      <ImageIcon size={28} strokeWidth={1.5} aria-hidden="true" />
-    </div>
+    <img
+      className={`photo photo-img ${className}`}
+      src={photo.url}
+      alt={`Photo of ${listing.title}`}
+      width={photo.width}
+      height={photo.height}
+      loading="lazy"
+    />
   )
 }
 
@@ -43,7 +55,7 @@ export function ListingCard({ listing, note }: { listing: Listing; note?: string
   return (
     <Link to={`/listings/${listing.id}`} className="listing-card">
       <div className="listing-card-photo">
-        <PhotoPlaceholder tone={listing.photoTone} label={`Photo of ${listing.title}`} />
+        <ListingPhoto listing={listing} />
         {listing.boosted && (
           <div className="photo-tl">
             <BoostedTag />
@@ -61,7 +73,7 @@ export function ListingCard({ listing, note }: { listing: Listing; note?: string
         <p>{typeLine(listing)}</p>
         <p>{formatDates(listing.availableFrom, listing.availableTo)}</p>
         {note && <p className="caption muted">{note}</p>}
-        <p className="muted">{listing.distanceToCampusMi} mi to campus</p>
+        <p className="muted">{distanceLabel(listing.distanceToCampusMi)}</p>
       </div>
     </Link>
   )

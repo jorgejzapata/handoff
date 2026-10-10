@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router'
-import { Check, SearchX } from 'lucide-react'
+import { Link } from 'react-router'
+import { Check, House, SearchX } from 'lucide-react'
 import { ListingCard } from '../components/ListingCard'
-import type { Listing } from '../data/sampleListings'
-import { formatDates, sampleListings } from '../data/sampleListings'
+import type { Listing } from '../lib/listings'
+import { formatDates } from '../lib/format'
+import { useActiveListings } from '../lib/useListings'
 
 type Sort = 'recommended' | 'newest' | 'price-asc' | 'price-desc'
 
@@ -30,6 +32,7 @@ export default function Browse() {
   const type = params.get('type') ?? 'any'
   const furnished = params.get('furnished') === '1'
   const sort = (params.get('sort') as Sort) ?? 'recommended'
+  const { listings, loading, error } = useActiveListings()
 
   function update(key: string, value: string | null) {
     const next = new URLSearchParams(params)
@@ -39,7 +42,7 @@ export default function Browse() {
   }
 
   const results = useMemo(() => {
-    const list = sampleListings.filter((l) => {
+    const list = (listings ?? []).filter((l) => {
       if (max && l.rentCents / 100 > max) return false
       if (type === 'room' && l.listingType !== 'room') return false
       if (type === 'whole' && l.listingType !== 'takeover') return false
@@ -56,7 +59,7 @@ export default function Browse() {
     if (sort === 'recommended')
       sorted.sort((a, b) => Number(b.boosted) - Number(a.boosted) || b.postedAt.localeCompare(a.postedAt))
     return sorted
-  }, [from, to, max, type, furnished, sort])
+  }, [listings, from, to, max, type, furnished, sort])
 
   const typeLabel = type === 'room' ? 'Room' : type === 'whole' ? 'Whole place' : 'Type'
   const anyFilter = from || to || max || type !== 'any' || furnished
@@ -81,7 +84,7 @@ export default function Browse() {
 
       <div className="results-head">
         <p className="label" aria-live="polite">
-          {results.length} {results.length === 1 ? 'place' : 'places'}
+          {loading ? 'Loading places' : `${results.length} ${results.length === 1 ? 'place' : 'places'}`}
         </p>
         <label className="sort">
           <span className="sr-only">Sort by</span>
@@ -95,7 +98,30 @@ export default function Browse() {
         </label>
       </div>
 
-      {results.length === 0 ? (
+      {loading ? (
+        <div className="results-grid" aria-busy="true">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="skeleton-card" />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="empty">
+          <p className="heading">Something broke on our end.</p>
+          <p className="muted">Try again in a minute.</p>
+          <button type="button" className="btn btn-secondary" onClick={() => window.location.reload()}>
+            Try again
+          </button>
+        </div>
+      ) : listings?.length === 0 ? (
+        <div className="empty">
+          <House size={48} strokeWidth={1.5} aria-hidden="true" />
+          <p className="heading">No places yet. Be one of the first to post at CSU.</p>
+          <p className="muted">Posting is free and takes about 5 minutes.</p>
+          <Link to="/post" className="btn btn-accent">
+            Post your place
+          </Link>
+        </div>
+      ) : results.length === 0 ? (
         <div className="empty">
           <SearchX size={48} strokeWidth={1.5} aria-hidden="true" />
           <p className="heading">No places match all of that yet.</p>

@@ -55,5 +55,141 @@ service cloud.firestore {
       // Account deletion goes through a Cloud Function later.
       allow delete: if false;
     }
+
+    // ---- listings/{listingId} ----
+    // Drafts are written by their owner, including anonymous accounts (so a
+    // draft saves before signup). Going live needs a verified CSU email and
+    // every required field. Boost fields, counts, reportCount and the
+    // hidden/removed statuses belong to Cloud Functions.
+
+    function listingContentKeys() {
+      return ['listingType', 'roomType', 'bedrooms', 'bathrooms', 'privateBath', 'roommateCount',
+        'furnished', 'rentCents', 'utilitiesIncluded', 'utilitiesEstimateCents', 'depositNote',
+        'availableFrom', 'availableTo', 'datesFlexible', 'neighborhood', 'approxLat', 'approxLng',
+        'distanceToCampusMi', 'amenities', 'title', 'description', 'photos', 'landlordStatus',
+        'leaseAckAt', 'listerFirstName', 'listerPhotoUrl', 'listerYear', 'listerSince'];
+    }
+
+    function validListingContent(d) {
+      return (!('listingType' in d) || d.listingType in ['room', 'takeover'])
+        && (!('roomType' in d) || d.roomType in ['private', 'shared', 'whole'])
+        && (!('bedrooms' in d) || (d.bedrooms is int && d.bedrooms >= 0 && d.bedrooms <= 10))
+        && (!('bathrooms' in d) || (d.bathrooms is number && d.bathrooms >= 0 && d.bathrooms <= 10))
+        && (!('privateBath' in d) || d.privateBath is bool)
+        && (!('roommateCount' in d) || (d.roommateCount is int && d.roommateCount >= 0 && d.roommateCount <= 10))
+        && (!('furnished' in d) || d.furnished is bool)
+        && (!('rentCents' in d) || (d.rentCents is int && d.rentCents >= 10000 && d.rentCents <= 500000))
+        && (!('utilitiesIncluded' in d) || d.utilitiesIncluded is bool)
+        && (!('utilitiesEstimateCents' in d) || d.utilitiesEstimateCents == null
+            || (d.utilitiesEstimateCents is int && d.utilitiesEstimateCents >= 0 && d.utilitiesEstimateCents <= 100000))
+        && (!('depositNote' in d) || isShortString(d.depositNote, 0, 120))
+        && (!('availableFrom' in d) || d.availableFrom is timestamp)
+        && (!('availableTo' in d) || d.availableTo is timestamp)
+        && (!('datesFlexible' in d) || d.datesFlexible is bool)
+        && (!('neighborhood' in d) || isShortString(d.neighborhood, 0, 60))
+        && (!('approxLat' in d) || d.approxLat is number)
+        && (!('approxLng' in d) || d.approxLng is number)
+        && (!('distanceToCampusMi' in d) || (d.distanceToCampusMi is number && d.distanceToCampusMi >= 0 && d.distanceToCampusMi <= 100))
+        && (!('amenities' in d) || (d.amenities is list && d.amenities.size() <= 12))
+        && (!('title' in d) || isShortString(d.title, 0, 60))
+        && (!('description' in d) || isShortString(d.description, 0, 1000))
+        && (!('photos' in d) || (d.photos is list && d.photos.size() <= 8))
+        && (!('landlordStatus' in d) || d.landlordStatus in ['allowed', 'needsApproval', 'notSure'])
+        && (!('leaseAckAt' in d) || d.leaseAckAt == null || d.leaseAckAt is timestamp)
+        && (!('listerFirstName' in d) || isShortString(d.listerFirstName, 1, 40))
+        && (!('listerPhotoUrl' in d) || d.listerPhotoUrl == null || isShortString(d.listerPhotoUrl, 1, 1000))
+        && (!('listerYear' in d) || d.listerYear == null || isShortString(d.listerYear, 1, 20))
+        && (!('listerSince' in d) || isShortString(d.listerSince, 1, 20));
+    }
+
+    // Everything a seeker needs before a listing can go live.
+    function publishable(d) {
+      return d.keys().hasAll(['listingType', 'rentCents', 'availableFrom', 'availableTo', 'title',
+          'description', 'photos', 'approxLat', 'approxLng', 'neighborhood', 'landlordStatus',
+          'leaseAckAt', 'listerFirstName', 'listerSince'])
+        && d.availableTo > d.availableFrom
+        && d.title.size() >= 1
+        && d.description.size() >= 50
+        && d.photos.size() >= 1
+        && d.leaseAckAt is timestamp;
+    }
+
+    // Move-out date or 30 days out, whichever is sooner; never more than 31 days.
+    function validExpiry(d) {
+      return d.expiresAt is timestamp
+        && d.expiresAt > request.time
+        && d.expiresAt <= request.time + duration.value(31, 'd');
+    }
+
+    function changed() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    match /listings/{listingId} {
+      allow get, list: if resource.data.status == 'active'
+        || (signedIn() && resource.data.ownerId == request.auth.uid);
+
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.status == 'draft'
+        && request.resource.data.schoolId == 'csu'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.keys().hasOnly(
+             listingContentKeys().concat(['ownerId', 'schoolId', 'status', 'createdAt', 'updatedAt']))
+        && validListingContent(request.resource.data);
+
+      allow update: if signedIn()
+        && resource.data.ownerId == request.auth.uid
+        && changed().hasOnly(listingContentKeys().concat(
+             ['updatedAt', 'status', 'publishedAt', 'expiresAt', 'filledAt', 'filledViaHandoff']))
+        && request.resource.data.updatedAt == request.time
+        && validListingContent(request.resource.data)
+        && (
+          // Editing a draft
+          (resource.data.status == 'draft' && request.resource.data.status == 'draft'
+            && !changed().hasAny(['publishedAt', 'expiresAt', 'filledAt', 'filledViaHandoff']))
+          // Publishing
+          || (resource.data.status == 'draft' && request.resource.data.status == 'active'
+            && isVerifiedCsu()
+            && publishable(request.resource.data)
+            && request.resource.data.publishedAt == request.time
+            && validExpiry(request.resource.data)
+            && !changed().hasAny(['filledAt', 'filledViaHandoff']))
+          // Editing a live listing
+          || (resource.data.status == 'active' && request.resource.data.status == 'active'
+            && isVerifiedCsu()
+            && publishable(request.resource.data)
+            && !changed().hasAny(['publishedAt', 'filledAt', 'filledViaHandoff'])
+            && (!changed().hasAny(['expiresAt']) || validExpiry(request.resource.data)))
+          // Marking filled
+          || (resource.data.status == 'active' && request.resource.data.status == 'filled'
+            && request.resource.data.filledAt == request.time
+            && request.resource.data.filledViaHandoff is bool
+            && !changed().hasAny(['publishedAt', 'expiresAt']))
+        );
+
+      // Hidden or removed listings stay put for moderation.
+      allow delete: if signedIn()
+        && resource.data.ownerId == request.auth.uid
+        && resource.data.status in ['draft', 'active', 'filled', 'expired'];
+
+      // The exact address. Only the owner ever reads it; it leaves their
+      // account only when they share it in a chat.
+      match /private/{docId} {
+        function ownsListing() {
+          return signedIn()
+            && get(/databases/$(database)/documents/listings/$(listingId)).data.ownerId == request.auth.uid;
+        }
+
+        allow read, delete: if docId == 'location' && ownsListing();
+        allow create, update: if docId == 'location' && ownsListing()
+          && request.resource.data.keys().hasOnly(['streetAddress', 'unit', 'exactLat', 'exactLng'])
+          && isShortString(request.resource.data.streetAddress, 1, 200)
+          && isShortString(request.resource.data.unit, 0, 30)
+          && request.resource.data.exactLat is number
+          && request.resource.data.exactLng is number;
+      }
+    }
   }
 }

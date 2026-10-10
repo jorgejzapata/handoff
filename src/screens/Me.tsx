@@ -35,9 +35,13 @@ export default function Me() {
   return (
     <div className="page me">
       <section className="me-head">
-        <span className="avatar" aria-hidden="true">
-          {name[0]}
-        </span>
+        {user.photoURL ? (
+          <img src={user.photoURL} alt="" className="avatar avatar-img" />
+        ) : (
+          <span className="avatar" aria-hidden="true">
+            {name[0]}
+          </span>
+        )}
         <div>
           <h1 className="title-sm">{name}</h1>
           {verified ? (
@@ -52,6 +56,11 @@ export default function Me() {
             </Link>
           )}
           <p className="caption muted">{user.email}</p>
+          {verified && (
+            <Link to="/onboarding?next=/me" className="text-link caption">
+              Edit profile
+            </Link>
+          )}
         </div>
       </section>
 

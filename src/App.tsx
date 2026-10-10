@@ -7,7 +7,9 @@ import { ToastProvider } from './components/Toast'
 import Home from './screens/Home'
 import Browse from './screens/Browse'
 import ListingDetail from './screens/ListingDetail'
-import PostListing from './screens/PostListing'
+import PostListing from './screens/post/PostListing'
+import PostLive from './screens/post/PostLive'
+import ProfileSetup from './screens/ProfileSetup'
 import Verify, { Verified } from './screens/Verify'
 import Me from './screens/Me'
 import { usingEmulators } from './lib/firebase'
@@ -100,6 +102,8 @@ export default function App() {
         <Route element={<TopBarOnly />}>
           <Route path="verify" element={<Verify />} />
           <Route path="verified" element={<Verified />} />
+          <Route path="post/live/:id" element={<PostLive />} />
+          <Route path="onboarding" element={<ProfileSetup />} />
         </Route>
         <Route path="post" element={<PostListing />} />
       </Routes>

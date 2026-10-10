@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router'
 import { CalendarDays, DollarSign, MessageCircle, PencilLine, ShieldCheck, Handshake } from 'lucide-react'
 import { ListingCard } from '../components/ListingCard'
 import { Footer } from '../components/Shell'
-import { sampleListings } from '../data/sampleListings'
+import { useActiveListings } from '../lib/useListings'
+import { useAuth } from '../components/AuthProvider'
 
 type PlaceType = 'any' | 'room' | 'whole'
 
@@ -14,7 +15,10 @@ export default function Home() {
   const [max, setMax] = useState('')
   const [type, setType] = useState<PlaceType>('any')
 
-  const newest = [...sampleListings].sort((a, b) => b.postedAt.localeCompare(a.postedAt)).slice(0, 8)
+  const { listings } = useActiveListings()
+  const { rawUser } = useAuth()
+  const newest = (listings ?? []).slice(0, 8)
+  const mine = rawUser ? (listings ?? []).find((l) => l.ownerId === rawUser.uid) : undefined
 
   function findPlace(e: React.FormEvent) {
     e.preventDefault()
@@ -95,6 +99,13 @@ export default function Home() {
         </form>
       </div>
 
+      {mine && (
+        <Link to={`/listings/${mine.id}`} className="mine-row">
+          <span className="caption muted">Your place</span>
+          <span className="card-title">{mine.title}</span>
+        </Link>
+      )}
+
       <section className="lister-card">
         <h2 className="heading">Leaving for the summer or a semester?</h2>
         <p>Posting is free and takes about 5 minutes.</p>
@@ -103,6 +114,7 @@ export default function Home() {
         </Link>
       </section>
 
+      {newest.length > 0 && (
       <section className="section">
         <div className="section-head">
           <h2 className="heading">Just posted</h2>
@@ -116,8 +128,17 @@ export default function Home() {
               <ListingCard listing={l} />
             </div>
           ))}
+          {newest.length < 4 && (
+            <div className="strip-item">
+              <Link to="/post" className="first-card">
+                <span className="heading">Be one of the first to post at CSU</span>
+                <span className="btn btn-secondary btn-sm">Post your place</span>
+              </Link>
+            </div>
+          )}
         </div>
       </section>
+      )}
 
       <section className="section">
         <h2 className="heading">How it works</h2>

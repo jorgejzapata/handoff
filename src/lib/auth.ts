@@ -1,18 +1,25 @@
 import { FirebaseError } from 'firebase/app'
 import {
+  EmailAuthProvider,
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
   getAdditionalUserInfo,
+  linkWithCredential,
+  linkWithPopup,
   sendEmailVerification,
   sendPasswordResetEmail,
+  signInAnonymously,
+  signInWithCredential,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  unlink,
   updateProfile,
 } from 'firebase/auth'
-import type { User } from 'firebase/auth'
+import type { User, UserCredential } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { auth, db } from './firebase'
+import { captureAnonDraft, restoreDraft } from './draftCarry'
 
 // CSU is the only school at launch. Both domains count: colostate.edu for
 // NetID addresses and rams.colostate.edu for student Google accounts.
@@ -51,19 +58,35 @@ async function ensureUserDoc(user: User, firstName: string) {
   })
 }
 
+// Drafts are saved under an anonymous account before signup. Signing up
+// upgrades that same account, so the draft and its photos carry over as-is.
+export async function ensureAnonymous() {
+  if (auth.currentUser) return auth.currentUser
+  const { user } = await signInAnonymously(auth)
+  return user
+}
+
 export async function signUpWithEmail(firstName: string, email: string, password: string) {
   const cleanEmail = email.trim().toLowerCase()
   if (!isCsuEmail(cleanEmail)) throw new AuthMessage('not-csu')
-  const { user } = await createUserWithEmailAndPassword(auth, cleanEmail, password)
+  const current = auth.currentUser
+  const { user } = current?.isAnonymous
+    ? await linkWithCredential(current, EmailAuthProvider.credential(cleanEmail, password))
+    : await createUserWithEmailAndPassword(auth, cleanEmail, password)
   await updateProfile(user, { displayName: firstName.trim() })
+  await user.getIdToken(true) // so rules see the new email
   await sendVerification(user)
   // The profile doc is retried on next sign-in if this fails, so it never blocks signup.
   await ensureUserDoc(user, firstName.trim()).catch((e) => console.error('[handoff] users doc', e))
   return user
 }
 
+// Logging in to an existing account leaves the anonymous one behind, so the
+// draft's details are copied over (photos need re-adding).
 export async function logInWithEmail(email: string, password: string) {
+  const carry = await captureAnonDraft()
   const { user } = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password)
+  await restoreDraft(carry, user.uid)
   await ensureUserDoc(user, user.displayName ?? 'Ram').catch((e) => console.error('[handoff] users doc', e))
   return user
 }
@@ -77,13 +100,37 @@ export async function continueWithGoogle() {
   // Hint Google to show only CSU student accounts. A hint, not a guarantee,
   // so the domain is checked again below.
   provider.setCustomParameters({ hd: 'rams.colostate.edu', prompt: 'select_account' })
-  const result = await signInWithPopup(auth, provider)
+  const current = auth.currentUser
+  let result: UserCredential
+  let linked = false
+  let carry: Awaited<ReturnType<typeof captureAnonDraft>> = null
+
+  if (current?.isAnonymous) {
+    try {
+      result = await linkWithPopup(current, provider)
+      linked = true
+    } catch (err) {
+      // This Google account already has a Handoff account: sign in to it instead.
+      const cred = (err as { code?: string }).code === 'auth/credential-already-in-use'
+        ? GoogleAuthProvider.credentialFromError(err as never)
+        : null
+      if (!cred) throw err
+      carry = await captureAnonDraft()
+      result = await signInWithCredential(auth, cred)
+    }
+  } else {
+    result = await signInWithPopup(auth, provider)
+  }
+
   const user = result.user
   if (!isCsuEmail(user.email)) {
-    if (getAdditionalUserInfo(result)?.isNewUser) await user.delete().catch(() => signOut(auth))
+    if (linked) await unlink(user, 'google.com').catch(() => {})
+    else if (getAdditionalUserInfo(result)?.isNewUser) await user.delete().catch(() => signOut(auth))
     else await signOut(auth)
     throw new AuthMessage('google-not-csu')
   }
+  if (carry) await restoreDraft(carry, user.uid)
+  await user.getIdToken(true)
   const firstName = (user.displayName ?? '').split(' ')[0] || 'Ram'
   await ensureUserDoc(user, firstName)
   return user
@@ -118,6 +165,7 @@ export function friendlyError(err: unknown): FriendlyError | null {
   if (err instanceof FirebaseError) {
     switch (err.code) {
       case 'auth/email-already-in-use':
+      case 'auth/credential-already-in-use':
         return { message: 'You already have an account.', field: 'email', action: 'login' }
       case 'auth/invalid-email':
         return { message: "That email doesn't look right.", field: 'email' }

@@ -21,6 +21,7 @@ type Reason = PendingAction['reason']
 interface OpenArgs {
   reason: Reason
   listerName?: string
+  listingId?: string
 }
 
 const SignUpContext = createContext<{ open: (args: OpenArgs) => void }>({ open: () => {} })
@@ -61,7 +62,12 @@ export function SignUpProvider({ children }: { children: ReactNode }) {
         if (note) toast(note)
         return
       }
-      savePending({ reason: a.reason, listerName: a.listerName, returnTo: location.pathname + location.search })
+      savePending({
+        reason: a.reason,
+        listerName: a.listerName,
+        listingId: a.listingId,
+        returnTo: location.pathname + location.search,
+      })
       if (user) navigate('/verify') // signed in, just not verified yet
       else setArgs(a)
     },
@@ -155,7 +161,10 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
     void run(async () => {
       const user = await logInWithEmail(email, password)
       onClose()
-      if (user.emailVerified) {
+      // Verify finishes a pending publish (and moves on right away if already verified).
+      if (args.reason === 'publish') {
+        navigate('/verify')
+      } else if (user.emailVerified) {
         clearPending()
         toast(`Welcome back${user.displayName ? `, ${user.displayName}` : ''}.`)
       } else {
@@ -168,6 +177,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
     void run(async () => {
       const user = await continueWithGoogle()
       onClose()
+      if (args.reason === 'publish') return navigate('/verify')
       clearPending()
       toast(`You're in${user.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}.`)
     })

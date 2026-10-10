@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "deploy": "npm run build && firebase deploy --only hosting",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-handoff-rules 'node --test tests/*.test.mjs'"
+    "test:rules": "firebase emulators:exec --only firestore,storage --project demo-handoff-rules 'node --test tests/*.test.mjs'"
   },
   "dependencies": {
     "firebase": "^13.0.0",

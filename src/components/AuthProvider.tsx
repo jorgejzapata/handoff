@@ -12,6 +12,7 @@ export interface PendingAction {
   reason: 'say-hi' | 'save' | 'publish' | 'messages' | 'login'
   returnTo: string
   listerName?: string
+  listingId?: string // for publish: the draft to put live once verified
 }
 
 const PENDING_KEY = 'handoff:pending-action'
@@ -42,13 +43,22 @@ export function clearPending() {
 }
 
 interface AuthState {
+  // A real (signed-up) account. Anonymous draft accounts count as signed out.
   user: User | null
+  // Any account, anonymous included. Drafts and photo uploads use this.
+  rawUser: User | null
   loading: boolean
   verified: boolean
   refresh: () => Promise<boolean>
 }
 
-const AuthContext = createContext<AuthState>({ user: null, loading: true, verified: false, refresh: async () => false })
+const AuthContext = createContext<AuthState>({
+  user: null,
+  rawUser: null,
+  loading: true,
+  verified: false,
+  refresh: async () => false,
+})
 export const useAuth = () => useContext(AuthContext)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -78,7 +88,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, verified: isVerifiedCsu(user), refresh }}>
+    <AuthContext.Provider
+      value={{
+        user: user && !user.isAnonymous ? user : null,
+        rawUser: user,
+        loading,
+        verified: isVerifiedCsu(user),
+        refresh,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

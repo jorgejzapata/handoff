@@ -7,6 +7,8 @@ import type { PendingAction } from '../components/AuthProvider'
 import { useToast } from '../components/Toast'
 import { logOut, sendVerification } from '../lib/auth'
 import { usingEmulators } from '../lib/firebase'
+import { getDraftPointer } from '../lib/draftCarry'
+import { listerSince, publishDraftById } from '../lib/listings'
 
 const RESEND_SECONDS = 60
 
@@ -15,7 +17,7 @@ function pendingLine(p: PendingAction | null) {
     case 'say-hi':
       return `Once you're verified, we'll take you right back to ${p.listerName ? `${p.listerName}'s place` : 'that place'}.`
     case 'publish':
-      return "Once you're verified, we'll take you right back to your listing."
+      return "Your listing goes live the moment you're verified."
     case 'save':
       return "Once you're verified, we'll take you right back to where you were."
     default:
@@ -33,17 +35,40 @@ export default function Verify() {
   const [resendNote, setResendNote] = useState<string | null>(null)
   const finished = useRef(false)
 
-  const finish = useCallback(() => {
+  const finish = useCallback(async () => {
     if (finished.current) return
     finished.current = true
     clearPending()
+
+    if (pending?.reason === 'publish' && user) {
+      const id = getDraftPointer() ?? pending.listingId
+      try {
+        const live =
+          !!id &&
+          (await publishDraftById(id, user.uid, {
+            firstName: user.displayName || 'A Ram',
+            since: listerSince(user.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date()),
+          }))
+        if (live) {
+          navigate(`/post/live/${id}`, { replace: true })
+          return
+        }
+        toast('Almost there. Finish the missing parts, then publish.')
+      } catch (e) {
+        console.error('[handoff] publish after verify', e)
+        toast("Couldn't publish yet. Check your listing and try again.")
+      }
+      navigate('/post', { replace: true })
+      return
+    }
+
     toast("You're verified")
     navigate(pending?.returnTo ?? '/', { replace: true })
-  }, [navigate, pending, toast])
+  }, [navigate, pending, toast, user])
 
   // Already verified (or verified on another device): move on.
   useEffect(() => {
-    if (verified) finish()
+    if (verified) void finish()
   }, [verified, finish])
 
   // Check every few seconds, and right away when the tab gets focus again.

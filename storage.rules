@@ -1,10 +1,34 @@
 rules_version = '2';
 
-// Locked down until the real rules from the MVP spec are written.
+// Handoff Storage rules. Anything not matched below is denied.
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if false;
+
+    // Resized JPEGs only (the app resizes before upload), under 3 MB.
+    function isPhotoUpload() {
+      return request.resource.contentType == 'image/jpeg'
+        && request.resource.size < 3 * 1024 * 1024;
+    }
+
+    // Listing photos: listing-photos/{uid}/{listingId}/{file}.
+    // Only the owner writes. Anyone can view a photo by its exact URL (listings
+    // are public), but nobody can list a folder.
+    match /listing-photos/{uid}/{listingId}/{file} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if request.auth != null && request.auth.uid == uid && isPhotoUpload();
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Profile photos: avatars/{uid}.jpg, signed-up (not anonymous) students only.
+    match /avatars/{file} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && file == request.auth.uid + '.jpg'
+        && isPhotoUpload();
+      allow delete: if request.auth != null && file == request.auth.uid + '.jpg';
     }
   }
 }
