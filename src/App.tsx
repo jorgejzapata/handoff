@@ -10,6 +10,8 @@ import { useSignUp } from './components/SignUpSheet'
 import Messages from './screens/messages/Messages'
 import MyListings from './screens/MyListings'
 import EditListing from './screens/EditListing'
+import Account from './screens/Account'
+import DeleteAccountInfo from './screens/DeleteAccountInfo'
 import Home from './screens/Home'
 import Browse from './screens/Browse'
 import ListingDetail from './screens/ListingDetail'
@@ -81,6 +83,22 @@ function RequireVerified({ children }: { children: React.ReactNode }) {
   )
 }
 
+// Signed in with a real account (verified or not).
+function RequireUser({ children }: { children: React.ReactNode }) {
+  const { loading, user } = useAuth()
+  const { open } = useSignUp()
+  if (loading) return null
+  if (user) return <>{children}</>
+  return (
+    <div className="page empty">
+      <p className="heading">Log in to see your account.</p>
+      <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'login' })}>
+        Log in
+      </button>
+    </div>
+  )
+}
+
 function NotBuiltYet({ title }: { title: string }) {
   return (
     <div className="page empty">
@@ -132,7 +150,15 @@ export default function App() {
               </RequireVerified>
             }
           />
-          <Route path="account" element={<NotBuiltYet title="Account settings" />} />
+          <Route
+            path="account"
+            element={
+              <RequireUser>
+                <Account />
+              </RequireUser>
+            }
+          />
+          <Route path="delete-account" element={<DeleteAccountInfo />} />
           <Route path="safety" element={<NotBuiltYet title="Safety tips" />} />
           <Route path="terms" element={<NotBuiltYet title="Terms" />} />
           <Route path="privacy" element={<NotBuiltYet title="Privacy" />} />

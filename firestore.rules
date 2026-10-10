@@ -52,8 +52,8 @@ service cloud.firestore {
         && (!('photoUrl' in request.resource.data) || isShortString(request.resource.data.photoUrl, 1, 1000))
         && (!('gradYear' in request.resource.data) || request.resource.data.gradYear is string);
 
-      // Account deletion goes through a Cloud Function later.
-      allow delete: if false;
+      // Self-serve account deletion (Account settings).
+      allow delete: if isOwner(uid);
     }
 
     // ---- listings/{listingId} ----
@@ -225,8 +225,9 @@ service cloud.firestore {
       allow read, delete: if isOwner(uid);
       allow create: if isOwner(uid)
         && blockedId != uid
-        && request.resource.data.keys().hasOnly(['createdAt'])
-        && request.resource.data.createdAt == request.time;
+        && request.resource.data.keys().hasOnly(['createdAt', 'firstName'])
+        && request.resource.data.createdAt == request.time
+        && (!('firstName' in request.resource.data) || isShortString(request.resource.data.firstName, 1, 40));
     }
 
     // ---- conversations/{listingId}_{seekerId} ----
@@ -318,6 +319,22 @@ service cloud.firestore {
           || (changed().hasOnly(['blockedBy'])
             && resource.data.blockedBy == null
             && request.resource.data.blockedBy == request.auth.uid)
+          // Unblocking: only the person who blocked
+          || (changed().hasOnly(['blockedBy'])
+            && resource.data.blockedBy == request.auth.uid
+            && request.resource.data.blockedBy == null)
+          // Leaving (account deletion): my name becomes "Former member", my
+          // photo goes, and the thread closes
+          || (changed().hasOnly(['listerFirstName', 'listerPhotoUrl', 'seekerFirstName', 'seekerPhotoUrl', 'blockedBy'])
+            && (resource.data.listerId == request.auth.uid
+              ? (!changed().hasAny(['seekerFirstName', 'seekerPhotoUrl'])
+                && request.resource.data.listerFirstName == 'Former member'
+                && request.resource.data.listerPhotoUrl == null)
+              : (!changed().hasAny(['listerFirstName', 'listerPhotoUrl'])
+                && request.resource.data.seekerFirstName == 'Former member'
+                && request.resource.data.seekerPhotoUrl == null))
+            && (request.resource.data.blockedBy == request.auth.uid
+              || (resource.data.blockedBy != null && request.resource.data.blockedBy == resource.data.blockedBy)))
         );
 
       allow delete: if false;

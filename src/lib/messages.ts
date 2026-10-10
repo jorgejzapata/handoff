@@ -243,9 +243,9 @@ export async function markRead(c: Conversation, me: string) {
 }
 
 export async function blockPerson(c: Conversation, me: string) {
-  const other = otherPerson(c, me).id
+  const other = otherPerson(c, me)
   const batch = writeBatch(db)
-  batch.set(doc(db, 'users', me, 'blocks', other), { createdAt: serverTimestamp() })
+  batch.set(doc(db, 'users', me, 'blocks', other.id), { createdAt: serverTimestamp(), firstName: other.firstName })
   batch.update(doc(db, 'conversations', c.id), { blockedBy: me })
   await batch.commit()
 }

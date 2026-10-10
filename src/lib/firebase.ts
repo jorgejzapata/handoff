@@ -2,7 +2,8 @@ import { initializeApp } from 'firebase/app'
 import { connectAuthEmulator, getAuth } from 'firebase/auth'
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
 import { connectStorageEmulator, getStorage } from 'firebase/storage'
-import { getAnalytics, isSupported } from 'firebase/analytics'
+import { getAnalytics, isSupported, setAnalyticsCollectionEnabled } from 'firebase/analytics'
+import { analyticsAllowed } from './settings'
 
 // Web config for handoff-dev. This is not a secret: it ships in every
 // Firebase web app. Security comes from the rules files, not from hiding this.
@@ -32,7 +33,30 @@ if (usingEmulators) {
   connectStorageEmulator(storage, '127.0.0.1', 9199)
 }
 
-// Analytics only runs on deployed builds, so local testing doesn't pollute GA4.
-export const analytics = import.meta.env.PROD
-  ? isSupported().then((ok) => (ok ? getAnalytics(app) : null))
-  : Promise.resolve(null)
+// Analytics only runs on deployed builds, so local testing doesn't pollute GA4,
+// and never starts when the student turned "Share usage analytics" off.
+let analyticsPromise: ReturnType<typeof startAnalytics> | null = null
+
+function startAnalytics() {
+  return isSupported().then((ok) => (ok ? getAnalytics(app) : null))
+}
+
+export function getAnalyticsIfAllowed() {
+  if (!import.meta.env.PROD || !analyticsAllowed()) return Promise.resolve(null)
+  analyticsPromise ??= startAnalytics()
+  return analyticsPromise
+}
+
+void getAnalyticsIfAllowed()
+
+// Called from Account settings when the toggle changes.
+export async function setAnalyticsEnabled(on: boolean) {
+  if (!import.meta.env.PROD) return
+  if (on) {
+    const a = await getAnalyticsIfAllowed()
+    if (a) setAnalyticsCollectionEnabled(a, true)
+  } else if (analyticsPromise) {
+    const a = await analyticsPromise
+    if (a) setAnalyticsCollectionEnabled(a, false)
+  }
+}

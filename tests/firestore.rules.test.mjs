@@ -120,9 +120,9 @@ describe('users/{uid}', () => {
       await assertFails(updateDoc(doc(db, 'users/maya'), { createdAt: new Date() }))
     })
 
-    test('nobody can delete from the client', async () => {
-      const db = env.authenticatedContext('maya', maya).firestore()
-      await assertFails(deleteDoc(doc(db, 'users/maya')))
+    test('owner can delete their own profile (account deletion); nobody else can', async () => {
+      await assertFails(deleteDoc(doc(env.authenticatedContext('jake', { email: 'jake@colostate.edu' }).firestore(), 'users/maya')))
+      await assertSucceeds(deleteDoc(doc(env.authenticatedContext('maya', maya).firestore(), 'users/maya')))
     })
   })
 })
@@ -613,6 +613,37 @@ describe('listing views', () => {
     const db = env.unauthenticatedContext().firestore()
     await assertFails(setDoc(doc(db, 'listings/live/views/whatever'), view))
     await assertFails(setDoc(doc(db, 'listings/live/views/20261010_visitorabc123'), { ...view, count: 500 }))
+  })
+})
+
+describe('account settings: blocks and leaving', () => {
+  beforeEach(async () => {
+    await seedLiveListing()
+    await seedConversation()
+  })
+
+  test('block saves a name for the blocked list, and only the blocker can unblock', async () => {
+    const jakeDb = env.authenticatedContext('jake', jakeVerified).firestore()
+    await assertSucceeds(setDoc(doc(jakeDb, 'users/jake/blocks/maya'), { createdAt: serverTimestamp(), firstName: 'Maya' }))
+    await seedConversation({ blockedBy: 'jake' })
+    const mayaDb = env.authenticatedContext('maya', mayaVerified).firestore()
+    await assertFails(updateDoc(doc(mayaDb, 'conversations/live_jake'), { blockedBy: null }))
+    await assertSucceeds(updateDoc(doc(jakeDb, 'conversations/live_jake'), { blockedBy: null }))
+    await assertSucceeds(deleteDoc(doc(jakeDb, 'users/jake/blocks/maya')))
+  })
+
+  test('leaving renames me to Former member and closes the thread', async () => {
+    const jakeDb = env.authenticatedContext('jake', jakeVerified).firestore()
+    await assertSucceeds(
+      updateDoc(doc(jakeDb, 'conversations/live_jake'), { seekerFirstName: 'Former member', seekerPhotoUrl: null, blockedBy: 'jake' }),
+    )
+  })
+
+  test("leaving can't rename the other person", async () => {
+    const jakeDb = env.authenticatedContext('jake', jakeVerified).firestore()
+    await assertFails(
+      updateDoc(doc(jakeDb, 'conversations/live_jake'), { listerFirstName: 'Former member', listerPhotoUrl: null, blockedBy: 'jake' }),
+    )
   })
 })
 
