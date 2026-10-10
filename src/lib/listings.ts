@@ -389,3 +389,18 @@ export async function publishDraftById(id: string, uid: string, lister: Lister) 
   await publishListing(id, draft, lister)
   return true
 }
+
+// ---- Closing a listing ----
+
+export async function markListingFilled(id: string, viaHandoff: boolean) {
+  await updateDoc(doc(db, 'listings', id), {
+    status: 'filled',
+    filledAt: serverTimestamp(),
+    filledViaHandoff: viaHandoff,
+    updatedAt: serverTimestamp(),
+  })
+}
+
+export async function takeListingDown(id: string) {
+  await updateDoc(doc(db, 'listings', id), { status: 'expired', updatedAt: serverTimestamp() })
+}

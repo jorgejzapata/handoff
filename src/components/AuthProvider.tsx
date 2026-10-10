@@ -12,7 +12,8 @@ export interface PendingAction {
   reason: 'say-hi' | 'save' | 'publish' | 'messages' | 'login'
   returnTo: string
   listerName?: string
-  listingId?: string // for publish: the draft to put live once verified
+  listingId?: string // publish: the draft to put live; say-hi: the listing
+  message?: string // say-hi: the first message, sent once verified
 }
 
 const PENDING_KEY = 'handoff:pending-action'

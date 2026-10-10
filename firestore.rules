@@ -167,6 +167,9 @@ service cloud.firestore {
             && request.resource.data.filledAt == request.time
             && request.resource.data.filledViaHandoff is bool
             && !changed().hasAny(['publishedAt', 'expiresAt']))
+          // Taking it down for another reason
+          || (resource.data.status == 'active' && request.resource.data.status == 'expired'
+            && changed().hasOnly(['status', 'updatedAt']))
         );
 
       // Hidden or removed listings stay put for moderation.
@@ -190,6 +193,156 @@ service cloud.firestore {
           && request.resource.data.exactLat is number
           && request.resource.data.exactLng is number;
       }
+    }
+
+    // ---- users/{uid}/blocks/{blockedId} ----
+    match /users/{uid}/blocks/{blockedId} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid)
+        && blockedId != uid
+        && request.resource.data.keys().hasOnly(['createdAt'])
+        && request.resource.data.createdAt == request.time;
+    }
+
+    // ---- conversations/{listingId}_{seekerId} ----
+    // One thread per seeker and listing. Only verified CSU students can start
+    // or write in one. Sending a message is one batch: the message, plus the
+    // conversation's lastMessage and the other person's unread count + 1.
+    // No Cloud Function needed.
+
+    function otherParticipant() {
+      return resource.data.listerId == request.auth.uid ? resource.data.seekerId : resource.data.listerId;
+    }
+
+    function onlyMyKeyChanged(field) {
+      return request.resource.data[field].diff(resource.data[field]).affectedKeys().hasOnly([request.auth.uid]);
+    }
+
+    function validNewConversation(d) {
+      let listing = get(/databases/$(database)/documents/listings/$(d.listingId)).data;
+      return listing.status == 'active'
+        && d.listerId == listing.ownerId
+        && d.seekerId == request.auth.uid
+        && d.listerId != d.seekerId
+        && d.participantIds == [d.listerId, d.seekerId]
+        && d.listingTitle == listing.title
+        && d.listerFirstName == listing.listerFirstName
+        && isShortString(d.seekerFirstName, 1, 40)
+        && (d.seekerPhotoUrl == null || isShortString(d.seekerPhotoUrl, 1, 1000))
+        && (d.listerPhotoUrl == null || isShortString(d.listerPhotoUrl, 1, 1000))
+        && (d.listingThumbUrl == null || isShortString(d.listingThumbUrl, 1, 1000))
+        && d.listingRentCents is int
+        && d.listingFrom is timestamp
+        && d.listingTo is timestamp
+        && d.createdAt == request.time
+        && d.updatedAt == request.time
+        && d.lastMessage.keys().hasOnly(['text', 'senderId', 'sentAt'])
+        && d.lastMessage.senderId == request.auth.uid
+        && d.lastMessage.sentAt == request.time
+        && isShortString(d.lastMessage.text, 1, 1000)
+        && d.unreadCount.keys().hasOnly([d.listerId, d.seekerId])
+        && d.unreadCount[d.listerId] == 1
+        && d.unreadCount[d.seekerId] == 0
+        && d.lastReadAt.keys().hasOnly([d.seekerId])
+        && d.lastReadAt[d.seekerId] == request.time
+        && d.closedReason == null
+        && d.blockedBy == null
+        && !exists(/databases/$(database)/documents/users/$(d.listerId)/blocks/$(d.seekerId))
+        && !exists(/databases/$(database)/documents/users/$(d.seekerId)/blocks/$(d.listerId));
+    }
+
+    match /conversations/{convId} {
+      allow get, list: if signedIn() && request.auth.uid in resource.data.participantIds;
+
+      allow create: if isVerifiedCsu()
+        && request.resource.data.keys().hasOnly(['listingId', 'listerId', 'seekerId', 'participantIds',
+             'listingTitle', 'listingThumbUrl', 'listingRentCents', 'listingFrom', 'listingTo',
+             'listerFirstName', 'listerPhotoUrl', 'seekerFirstName', 'seekerPhotoUrl', 'lastMessage',
+             'unreadCount', 'lastReadAt', 'closedReason', 'blockedBy', 'createdAt', 'updatedAt'])
+        && convId == request.resource.data.listingId + '_' + request.auth.uid
+        && validNewConversation(request.resource.data);
+
+      allow update: if isVerifiedCsu()
+        && request.auth.uid in resource.data.participantIds
+        && (
+          // Sending a message
+          (changed().hasOnly(['lastMessage', 'unreadCount', 'lastReadAt', 'updatedAt'])
+            && resource.data.closedReason == null
+            && resource.data.blockedBy == null
+            && request.resource.data.lastMessage.keys().hasOnly(['text', 'senderId', 'sentAt'])
+            && request.resource.data.lastMessage.senderId == request.auth.uid
+            && request.resource.data.lastMessage.sentAt == request.time
+            && isShortString(request.resource.data.lastMessage.text, 1, 1000)
+            && request.resource.data.updatedAt == request.time
+            && request.resource.data.unreadCount.keys().hasOnly(resource.data.participantIds)
+            && request.resource.data.unreadCount[otherParticipant()]
+                 == resource.data.unreadCount.get(otherParticipant(), 0) + 1
+            && request.resource.data.unreadCount[request.auth.uid] == 0
+            && onlyMyKeyChanged('lastReadAt'))
+          // Reading: clear my unread count and mark when I read
+          || (changed().hasOnly(['unreadCount', 'lastReadAt'])
+            && request.resource.data.unreadCount[request.auth.uid] == 0
+            && onlyMyKeyChanged('unreadCount')
+            && onlyMyKeyChanged('lastReadAt')
+            && request.resource.data.lastReadAt[request.auth.uid] == request.time)
+          // Closing: the lister's listing was filled or taken down
+          || (request.auth.uid == resource.data.listerId
+            && changed().hasOnly(['closedReason'])
+            && request.resource.data.closedReason in ['filled', 'expired'])
+          // Blocking: either person can close the thread for good
+          || (changed().hasOnly(['blockedBy'])
+            && resource.data.blockedBy == null
+            && request.resource.data.blockedBy == request.auth.uid)
+        );
+
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function convAfter() {
+          return getAfter(/databases/$(database)/documents/conversations/$(convId)).data;
+        }
+
+        allow read: if signedIn()
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participantIds;
+
+        allow create: if isVerifiedCsu()
+          && request.auth.uid in convAfter().participantIds
+          && convAfter().blockedBy == null
+          && request.resource.data.keys().hasOnly(['senderId', 'text', 'sentAt', 'type'])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.sentAt == request.time
+          && isShortString(request.resource.data.text, 1, 1000)
+          && (
+            (request.resource.data.type == 'text' && convAfter().closedReason == null)
+            // Only the lister can share the exact address
+            || (request.resource.data.type == 'address'
+              && request.auth.uid == convAfter().listerId
+              && convAfter().closedReason == null)
+            // "Maya marked this place as filled." when a thread closes
+            || (request.resource.data.type == 'system'
+              && request.auth.uid == convAfter().listerId
+              && convAfter().closedReason != null)
+          );
+
+        allow update, delete: if false;
+      }
+    }
+
+    // ---- reports/{reportId} ----
+    // Students create; only admins (custom claim) read and act on them.
+    match /reports/{reportId} {
+      allow create: if isVerifiedCsu()
+        && request.resource.data.keys().hasOnly(
+             ['reporterId', 'targetType', 'targetId', 'reason', 'details', 'status', 'createdAt'])
+        && request.resource.data.reporterId == request.auth.uid
+        && request.resource.data.targetType in ['listing', 'user', 'message']
+        && isShortString(request.resource.data.targetId, 1, 300)
+        && request.resource.data.reason in ['scam', 'money-before-viewing', 'fake', 'unavailable', 'offensive', 'other']
+        && isShortString(request.resource.data.details, 0, 500)
+        && request.resource.data.status == 'open'
+        && request.resource.data.createdAt == request.time;
+
+      allow read, update: if signedIn() && request.auth.token.admin == true;
     }
   }
 }

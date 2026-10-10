@@ -6,6 +6,10 @@ import { ListerCard, ListingView } from '../components/ListingView'
 import { useAuth } from '../components/AuthProvider'
 import { useSignUp } from '../components/SignUpSheet'
 import { useToast } from '../components/Toast'
+import { useInbox } from '../components/InboxProvider'
+import { SayHiSheet } from '../components/SayHiSheet'
+import { ReportSheet } from '../components/ReportSheet'
+import { MarkFilledSheet } from '../components/MarkFilledSheet'
 import { fetchListing } from '../lib/listings'
 import type { Listing } from '../lib/listings'
 import { formatDates, formatRent, formatShortDate } from '../lib/format'
@@ -14,9 +18,12 @@ export default function ListingDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { open } = useSignUp()
-  const { rawUser } = useAuth()
+  const { rawUser, verified } = useAuth()
+  const { conversations } = useInbox()
   const toast = useToast()
   const [listing, setListing] = useState<Listing | null | undefined>(undefined)
+  const [sheet, setSheet] = useState<'say-hi' | 'report' | 'filled' | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -25,7 +32,7 @@ export default function ListingDetail() {
     return () => {
       alive = false
     }
-  }, [id, rawUser?.uid])
+  }, [id, rawUser?.uid, reloadKey])
 
   if (listing === undefined) return <div className="detail detail-loading" aria-busy="true" />
 
@@ -43,7 +50,8 @@ export default function ListingDetail() {
   const name = listing.lister.firstName
   const isOwn = !!rawUser && rawUser.uid === listing.ownerId
   const closed = listing.status === 'filled' || listing.status === 'expired'
-  const sayHi = () => open({ reason: 'say-hi', listerName: name })
+  const existingChat = conversations?.find((c) => c.listingId === listing.id && c.seekerId === rawUser?.uid)
+  const report = () => (verified ? setSheet('report') : open({ reason: 'login' }))
 
   async function share() {
     const url = `${window.location.origin}/listings/${listing!.id}`
@@ -64,11 +72,15 @@ export default function ListingDetail() {
       See similar places
     </Link>
   ) : isOwn ? (
-    <Link to="/me" className="btn btn-secondary">
-      Manage
+    <button type="button" className="btn btn-secondary" onClick={() => setSheet('filled')}>
+      Mark as filled
+    </button>
+  ) : existingChat ? (
+    <Link to={`/messages/${existingChat.id}`} className="btn btn-accent">
+      Open chat with {name}
     </Link>
   ) : (
-    <button type="button" className="btn btn-accent" onClick={sayHi}>
+    <button type="button" className="btn btn-accent" onClick={() => setSheet('say-hi')}>
       Say hi to {name}
     </button>
   )
@@ -115,13 +127,21 @@ export default function ListingDetail() {
                 ` · Updated ${formatShortDate(listing.updatedAt)}`}
             </p>
             {!isOwn && (
-              <button type="button" className="link-btn caption" onClick={() => open({ reason: 'login' })}>
+              <button type="button" className="link-btn caption" onClick={report}>
                 Report this listing
               </button>
             )}
           </footer>
         }
       />
+
+      {sheet === 'say-hi' && <SayHiSheet listing={listing} onClose={() => setSheet(null)} />}
+      {sheet === 'report' && (
+        <ReportSheet targetType="listing" targetId={listing.id} title="Report this listing" onClose={() => setSheet(null)} />
+      )}
+      {sheet === 'filled' && (
+        <MarkFilledSheet listingId={listing.id} onDone={() => setReloadKey((k) => k + 1)} onClose={() => setSheet(null)} />
+      )}
 
       <div className="sticky-bar mobile-only">
         <p className="price">

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { DollarSign, MessageCircle, PencilLine, ShieldCheck, Handshake } from 'lucide-react'
 import { ListingCard } from '../components/ListingCard'
 import { DateInput } from '../components/DateInput'
+import { readLastSearch, saveLastSearch } from '../lib/lastSearch'
 import { Footer } from '../components/Shell'
 import { useActiveListings } from '../lib/useListings'
 import { useAuth } from '../components/AuthProvider'
@@ -11,10 +12,12 @@ type PlaceType = 'any' | 'room' | 'whole'
 
 export default function Home() {
   const navigate = useNavigate()
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const [max, setMax] = useState('')
-  const [type, setType] = useState<PlaceType>('any')
+  // Returning visitors get their last search back.
+  const [last] = useState(readLastSearch)
+  const [from, setFrom] = useState(last.from ?? '')
+  const [to, setTo] = useState(last.to ?? '')
+  const [max, setMax] = useState(last.max ?? '')
+  const [type, setType] = useState<PlaceType>((last.type as PlaceType) ?? 'any')
 
   const { listings } = useActiveListings()
   const { rawUser } = useAuth()
@@ -23,6 +26,7 @@ export default function Home() {
 
   function findPlace(e: React.FormEvent) {
     e.preventDefault()
+    saveLastSearch({ from, to, max, type })
     const params = new URLSearchParams()
     if (from) params.set('from', from)
     if (to) params.set('to', to)

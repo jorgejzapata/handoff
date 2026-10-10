@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import { Link } from 'react-router'
 import { Check, House, SearchX } from 'lucide-react'
@@ -6,6 +6,7 @@ import { ListingCard } from '../components/ListingCard'
 import type { Listing } from '../lib/listings'
 import { formatDates } from '../lib/format'
 import { useActiveListings } from '../lib/useListings'
+import { saveLastSearch } from '../lib/lastSearch'
 
 type Sort = 'recommended' | 'newest' | 'price-asc' | 'price-desc'
 
@@ -33,6 +34,11 @@ export default function Browse() {
   const furnished = params.get('furnished') === '1'
   const sort = (params.get('sort') as Sort) ?? 'recommended'
   const { listings, loading, error } = useActiveListings()
+
+  // Remember the dates for Say hi and the next visit to Home.
+  useEffect(() => {
+    if (from || to || max) saveLastSearch({ from, to, max: max ? String(max) : undefined, type })
+  }, [from, to, max, type])
 
   function update(key: string, value: string | null) {
     const next = new URLSearchParams(params)

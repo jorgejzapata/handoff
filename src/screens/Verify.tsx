@@ -8,14 +8,17 @@ import { useToast } from '../components/Toast'
 import { logOut, sendVerification } from '../lib/auth'
 import { usingEmulators } from '../lib/firebase'
 import { getDraftPointer } from '../lib/draftCarry'
-import { listerSince, publishDraftById } from '../lib/listings'
+import { fetchListing, listerSince, publishDraftById } from '../lib/listings'
+import { findMyConversation, startConversation } from '../lib/messages'
 
 const RESEND_SECONDS = 60
 
 function pendingLine(p: PendingAction | null) {
   switch (p?.reason) {
     case 'say-hi':
-      return `Once you're verified, we'll take you right back to ${p.listerName ? `${p.listerName}'s place` : 'that place'}.`
+      return p.message
+        ? `Your message to ${p.listerName ?? 'the lister'} is ready. It sends the moment you're verified.`
+        : `Once you're verified, we'll take you right back to ${p.listerName ? `${p.listerName}'s place` : 'that place'}.`
     case 'publish':
       return "Your listing goes live the moment you're verified."
     case 'save':
@@ -59,6 +62,29 @@ export default function Verify() {
         toast("Couldn't publish yet. Check your listing and try again.")
       }
       navigate('/post', { replace: true })
+      return
+    }
+
+    if (pending?.reason === 'say-hi' && pending.listingId && pending.message && user) {
+      try {
+        const existing = await findMyConversation(pending.listingId, user.uid)
+        if (existing) {
+          navigate(`/messages/${existing}`, { replace: true })
+          return
+        }
+        const listing = await fetchListing(pending.listingId)
+        if (listing?.status === 'active') {
+          const id = await startConversation(listing, user, pending.message)
+          toast(`You're verified. Your message to ${listing.lister.firstName} is sent.`)
+          navigate(`/messages/${id}`, { replace: true })
+          return
+        }
+        toast('That place is no longer available.')
+      } catch (e) {
+        console.error('[handoff] say hi after verify', e)
+        toast("You're verified, but the message didn't send. Try Say hi again.")
+      }
+      navigate(pending.returnTo ?? '/', { replace: true })
       return
     }
 

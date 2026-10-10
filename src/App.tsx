@@ -4,6 +4,10 @@ import { BottomNav, TopBar } from './components/Shell'
 import { SignUpProvider } from './components/SignUpSheet'
 import { AuthProvider } from './components/AuthProvider'
 import { ToastProvider } from './components/Toast'
+import { InboxProvider } from './components/InboxProvider'
+import { useAuth } from './components/AuthProvider'
+import { useSignUp } from './components/SignUpSheet'
+import Messages from './screens/messages/Messages'
 import Home from './screens/Home'
 import Browse from './screens/Browse'
 import ListingDetail from './screens/ListingDetail'
@@ -53,6 +57,28 @@ function NoBottomNav() {
   )
 }
 
+// Messages need a verified CSU account.
+function RequireVerified({ children }: { children: React.ReactNode }) {
+  const { loading, user, verified } = useAuth()
+  const { open } = useSignUp()
+  if (loading) return null
+  if (verified) return <>{children}</>
+  return (
+    <div className="page empty">
+      <p className="heading">{user ? 'Verify your CSU email to see messages.' : 'Sign up to see your messages.'}</p>
+      {user ? (
+        <Link to="/verify" className="btn btn-primary">
+          Verify my email
+        </Link>
+      ) : (
+        <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'messages' })}>
+          Sign up
+        </button>
+      )}
+    </div>
+  )
+}
+
 function NotBuiltYet({ title }: { title: string }) {
   return (
     <div className="page empty">
@@ -80,13 +106,21 @@ export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
+        <InboxProvider>
         <SignUpProvider>
       <Routes>
         <Route element={<WithNav />}>
           <Route index element={<Home />} />
           <Route path="listings" element={<Browse />} />
           <Route path="saved" element={<NotBuiltYet title="Saved" />} />
-          <Route path="messages" element={<NotBuiltYet title="Messages" />} />
+          <Route
+            path="messages"
+            element={
+              <RequireVerified>
+                <Messages />
+              </RequireVerified>
+            }
+          />
           <Route path="me" element={<Me />} />
           <Route path="me/listings" element={<NotBuiltYet title="Your listings" />} />
           <Route path="account" element={<NotBuiltYet title="Account settings" />} />
@@ -98,6 +132,14 @@ export default function App() {
         </Route>
         <Route element={<NoBottomNav />}>
           <Route path="listings/:id" element={<ListingDetail />} />
+          <Route
+            path="messages/:id"
+            element={
+              <RequireVerified>
+                <Messages />
+              </RequireVerified>
+            }
+          />
         </Route>
         <Route element={<TopBarOnly />}>
           <Route path="verify" element={<Verify />} />
@@ -108,6 +150,7 @@ export default function App() {
         <Route path="post" element={<PostListing />} />
       </Routes>
         </SignUpProvider>
+        </InboxProvider>
       </ToastProvider>
     </AuthProvider>
   )

@@ -15,6 +15,9 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
+  increment,
+  addDoc,
 } from 'firebase/firestore'
 
 let env
@@ -325,6 +328,250 @@ describe('listings/{id}/private/location', () => {
     const db = env.authenticatedContext('maya', anon).firestore()
     await assertFails(setDoc(doc(db, 'listings/l1/private/other'), loc))
     await assertFails(setDoc(doc(db, 'listings/l1/private/location'), { ...loc, phone: '555' }))
+  })
+})
+
+// ---- messaging ----
+
+const jakeVerified = { email: 'jake@colostate.edu', email_verified: true }
+const jakeUnverified = { email: 'jake@colostate.edu', email_verified: false }
+const outsiderAuth = { email: 'sam@colostate.edu', email_verified: true }
+
+async function seedLiveListing(id = 'live', owner = 'maya') {
+  await seedListing(id, {
+    ...newDraft(owner, complete),
+    status: 'active',
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+    publishedAt: Timestamp.now(),
+    expiresAt: inDays(30),
+    listerFirstName: 'Maya',
+    listerSince: 'Oct 2026',
+  })
+}
+
+function newConversation(extra = {}) {
+  return {
+    listingId: 'live',
+    listerId: 'maya',
+    seekerId: 'jake',
+    participantIds: ['maya', 'jake'],
+    listingTitle: complete.title,
+    listingThumbUrl: null,
+    listingRentCents: 65000,
+    listingFrom: complete.availableFrom,
+    listingTo: complete.availableTo,
+    listerFirstName: 'Maya',
+    listerPhotoUrl: null,
+    seekerFirstName: 'Jake',
+    seekerPhotoUrl: null,
+    lastMessage: { text: 'Hi Maya! Is your place still open?', senderId: 'jake', sentAt: serverTimestamp() },
+    unreadCount: { maya: 1, jake: 0 },
+    lastReadAt: { jake: serverTimestamp() },
+    closedReason: null,
+    blockedBy: null,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...extra,
+  }
+}
+
+async function startAs(auth, uid, convId = 'live_jake', conv = newConversation()) {
+  const db = env.authenticatedContext(uid, auth).firestore()
+  const batch = writeBatch(db)
+  batch.set(doc(db, 'conversations', convId), conv)
+  batch.set(doc(collection(db, 'conversations', convId, 'messages')), {
+    senderId: uid,
+    text: conv.lastMessage.text,
+    sentAt: serverTimestamp(),
+    type: 'text',
+  })
+  return batch.commit()
+}
+
+async function seedConversation(extra = {}) {
+  await env.withSecurityRulesDisabled((ctx) =>
+    setDoc(doc(ctx.firestore(), 'conversations/live_jake'), {
+      ...newConversation(),
+      lastMessage: { text: 'Hi', senderId: 'jake', sentAt: Timestamp.now() },
+      lastReadAt: { jake: Timestamp.now() },
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+      ...extra,
+    }),
+  )
+}
+
+function sendAs(auth, uid, other, { text = 'Sounds good', type = 'text', extra = {} } = {}) {
+  const db = env.authenticatedContext(uid, auth).firestore()
+  const convRef = doc(db, 'conversations/live_jake')
+  const batch = writeBatch(db)
+  batch.set(doc(collection(convRef, 'messages')), { senderId: uid, text, sentAt: serverTimestamp(), type })
+  batch.update(convRef, {
+    lastMessage: { text, senderId: uid, sentAt: serverTimestamp() },
+    [`unreadCount.${other}`]: increment(1),
+    [`unreadCount.${uid}`]: 0,
+    [`lastReadAt.${uid}`]: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    ...extra,
+  })
+  return batch.commit()
+}
+
+const mayaVerified = verifiedMaya
+
+describe('conversations: starting a thread', () => {
+  beforeEach(() => seedLiveListing())
+
+  test('a verified CSU student can say hi', async () => {
+    await assertSucceeds(startAs(jakeVerified, 'jake'))
+  })
+
+  test('unverified students cannot say hi', async () => {
+    await assertFails(startAs(jakeUnverified, 'jake'))
+  })
+
+  test("the thread id must be listing_seeker, so there's one thread per seeker", async () => {
+    await assertFails(startAs(jakeVerified, 'jake', 'live_someoneelse'))
+  })
+
+  test("can't fake the lister's name or message the listing's owner as themselves", async () => {
+    await assertFails(startAs(jakeVerified, 'jake', 'live_jake', newConversation({ listerFirstName: 'Admin' })))
+    await assertFails(startAs(mayaVerified, 'maya', 'live_maya', newConversation({ seekerId: 'maya', participantIds: ['maya', 'maya'] })))
+  })
+
+  test("can't start a thread on a listing that isn't live", async () => {
+    await seedListing('draft1', { ...newDraft('maya', complete), createdAt: Timestamp.now(), updatedAt: Timestamp.now() })
+    await assertFails(startAs(jakeVerified, 'jake', 'draft1_jake', newConversation({ listingId: 'draft1' })))
+  })
+
+  test('a blocked student cannot start a new thread', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'users/maya/blocks/jake'), { createdAt: Timestamp.now() }))
+    await assertFails(startAs(jakeVerified, 'jake'))
+  })
+})
+
+describe('conversations: in a thread', () => {
+  beforeEach(async () => {
+    await seedLiveListing()
+    await seedConversation()
+  })
+
+  test('only the two people can read the thread and its messages', async () => {
+    const jakeDb = env.authenticatedContext('jake', jakeVerified).firestore()
+    await assertSucceeds(getDoc(doc(jakeDb, 'conversations/live_jake')))
+    await assertSucceeds(getDocs(collection(jakeDb, 'conversations/live_jake/messages')))
+    const samDb = env.authenticatedContext('sam', outsiderAuth).firestore()
+    await assertFails(getDoc(doc(samDb, 'conversations/live_jake')))
+    await assertFails(getDocs(collection(samDb, 'conversations/live_jake/messages')))
+  })
+
+  test('inbox query works for a participant', async () => {
+    const db = env.authenticatedContext('maya', mayaVerified).firestore()
+    await assertSucceeds(getDocs(query(collection(db, 'conversations'), where('participantIds', 'array-contains', 'maya'))))
+  })
+
+  test('both people can send messages', async () => {
+    await assertSucceeds(sendAs(mayaVerified, 'maya', 'jake'))
+    await assertSucceeds(sendAs(jakeVerified, 'jake', 'maya'))
+  })
+
+  test("outsiders can't post, and nobody can inflate unread counts", async () => {
+    await assertFails(sendAs(outsiderAuth, 'sam', 'maya'))
+    await assertFails(sendAs(jakeVerified, 'jake', 'maya', { extra: { 'unreadCount.maya': 50 } }))
+  })
+
+  test('messages cannot be edited or deleted', async () => {
+    let msgId
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const ref = await addDoc(collection(ctx.firestore(), 'conversations/live_jake/messages'), {
+        senderId: 'jake', text: 'Hi', sentAt: Timestamp.now(), type: 'text',
+      })
+      msgId = ref.id
+    })
+    const db = env.authenticatedContext('jake', jakeVerified).firestore()
+    await assertFails(updateDoc(doc(db, `conversations/live_jake/messages/${msgId}`), { text: 'Edited' }))
+    await assertFails(deleteDoc(doc(db, `conversations/live_jake/messages/${msgId}`)))
+  })
+
+  test("reading clears my unread count, but not the other person's", async () => {
+    const db = env.authenticatedContext('maya', mayaVerified).firestore()
+    await assertSucceeds(updateDoc(doc(db, 'conversations/live_jake'), { 'unreadCount.maya': 0, 'lastReadAt.maya': serverTimestamp() }))
+    await assertFails(updateDoc(doc(db, 'conversations/live_jake'), { 'unreadCount.jake': 0, 'lastReadAt.jake': serverTimestamp() }))
+  })
+
+  test('only the lister can share the address', async () => {
+    await assertSucceeds(sendAs(mayaVerified, 'maya', 'jake', { text: '1234 Elizabeth St', type: 'address' }))
+    await assertFails(sendAs(jakeVerified, 'jake', 'maya', { text: '1234 Elizabeth St', type: 'address' }))
+  })
+
+  test('the lister can close the thread with a system line; the seeker cannot', async () => {
+    const mayaDb = env.authenticatedContext('maya', mayaVerified).firestore()
+    const batch = writeBatch(mayaDb)
+    batch.update(doc(mayaDb, 'conversations/live_jake'), { closedReason: 'filled' })
+    batch.set(doc(collection(mayaDb, 'conversations/live_jake/messages')), {
+      senderId: 'maya', text: 'Maya marked this place as filled.', sentAt: serverTimestamp(), type: 'system',
+    })
+    await assertSucceeds(batch.commit())
+
+    const jakeDb = env.authenticatedContext('jake', jakeVerified).firestore()
+    await assertFails(updateDoc(doc(jakeDb, 'conversations/live_jake'), { closedReason: null }))
+  })
+
+  test('closed and blocked threads take no new messages', async () => {
+    await seedConversation({ closedReason: 'filled' })
+    await assertFails(sendAs(jakeVerified, 'jake', 'maya'))
+    await seedConversation({ blockedBy: 'maya' })
+    await assertFails(sendAs(jakeVerified, 'jake', 'maya'))
+    await assertFails(sendAs(mayaVerified, 'maya', 'jake'))
+  })
+
+  test('either person can block, once', async () => {
+    const db = env.authenticatedContext('jake', jakeVerified).firestore()
+    const batch = writeBatch(db)
+    batch.set(doc(db, 'users/jake/blocks/maya'), { createdAt: serverTimestamp() })
+    batch.update(doc(db, 'conversations/live_jake'), { blockedBy: 'jake' })
+    await assertSucceeds(batch.commit())
+    const mayaDb = env.authenticatedContext('maya', mayaVerified).firestore()
+    await assertFails(updateDoc(doc(mayaDb, 'conversations/live_jake'), { blockedBy: 'maya' }))
+  })
+})
+
+describe('reports', () => {
+  const report = (extra = {}) => ({
+    reporterId: 'jake',
+    targetType: 'listing',
+    targetId: 'live',
+    reason: 'scam',
+    details: 'Asked for a deposit over Zelle before showing it.',
+    status: 'open',
+    createdAt: serverTimestamp(),
+    ...extra,
+  })
+
+  test('verified students can report', async () => {
+    const db = env.authenticatedContext('jake', jakeVerified).firestore()
+    await assertSucceeds(addDoc(collection(db, 'reports'), report()))
+  })
+
+  test("can't report as someone else, unverified, or pre-resolved", async () => {
+    await assertFails(addDoc(collection(env.authenticatedContext('jake', jakeVerified).firestore(), 'reports'), report({ reporterId: 'maya' })))
+    await assertFails(addDoc(collection(env.authenticatedContext('jake', jakeUnverified).firestore(), 'reports'), report()))
+    await assertFails(addDoc(collection(env.authenticatedContext('jake', jakeVerified).firestore(), 'reports'), report({ status: 'dismissed' })))
+  })
+
+  test('only admins can read reports', async () => {
+    await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), 'reports/r1'), { ...report(), createdAt: Timestamp.now() }))
+    await assertFails(getDoc(doc(env.authenticatedContext('jake', jakeVerified).firestore(), 'reports/r1')))
+    await assertSucceeds(getDoc(doc(env.authenticatedContext('jorge', { ...jakeVerified, admin: true }).firestore(), 'reports/r1')))
+  })
+})
+
+describe('listings: taking one down', () => {
+  beforeEach(() => seedLiveListing())
+  test('owner can take a live listing down', async () => {
+    const db = env.authenticatedContext('maya', mayaVerified).firestore()
+    await assertSucceeds(updateDoc(doc(db, 'listings/live'), { status: 'expired', updatedAt: serverTimestamp() }))
   })
 })
 

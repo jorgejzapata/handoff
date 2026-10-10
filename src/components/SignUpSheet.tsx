@@ -22,6 +22,7 @@ interface OpenArgs {
   reason: Reason
   listerName?: string
   listingId?: string
+  message?: string
 }
 
 const SignUpContext = createContext<{ open: (args: OpenArgs) => void }>({ open: () => {} })
@@ -29,7 +30,6 @@ export const useSignUp = () => useContext(SignUpContext)
 
 // Until messaging and saves exist, a verified student gets a heads-up instead.
 const COMING_NEXT: Partial<Record<Reason, string>> = {
-  'say-hi': 'Messaging is coming next.',
   save: 'Saving places is coming next.',
 }
 
@@ -66,6 +66,7 @@ export function SignUpProvider({ children }: { children: ReactNode }) {
         reason: a.reason,
         listerName: a.listerName,
         listingId: a.listingId,
+        message: a.message,
         returnTo: location.pathname + location.search,
       })
       if (user) navigate('/verify') // signed in, just not verified yet
@@ -164,7 +165,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
       const user = await logInWithEmail(email, password)
       onClose()
       // Verify finishes a pending publish (and moves on right away if already verified).
-      if (args.reason === 'publish') {
+      if (args.reason === 'publish' || args.reason === 'say-hi') {
         navigate('/verify')
       } else if (user.emailVerified) {
         clearPending()
@@ -179,7 +180,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
     void run(async () => {
       const user = await continueWithGoogle()
       onClose()
-      if (args.reason === 'publish') return navigate('/verify')
+      if (args.reason === 'publish' || args.reason === 'say-hi') return navigate('/verify')
       clearPending()
       toast(`You're in${user.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}.`)
     })

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router'
 import { Heart, MessageCircle, Plus, Search, User } from 'lucide-react'
 import { useAuth } from './AuthProvider'
+import { useInbox } from './InboxProvider'
 import { useSignUp } from './SignUpSheet'
 
 export function Mark({ size = 28 }: { size?: number }) {
@@ -17,6 +18,7 @@ export function Mark({ size = 28 }: { size?: number }) {
 
 export function TopBar() {
   const { user, loading } = useAuth()
+  const { unreadTotal } = useInbox()
   const { open } = useSignUp()
   const name = user?.displayName || 'Me'
   return (
@@ -28,7 +30,10 @@ export function TopBar() {
       <nav className="topbar-links" aria-label="Main">
         <NavLink to="/listings">Browse</NavLink>
         <NavLink to="/saved">Saved</NavLink>
-        <NavLink to="/messages">Messages</NavLink>
+        <NavLink to="/messages">
+          Messages
+          {unreadTotal > 0 && <span className="nav-badge nav-badge-inline">{unreadTotal > 9 ? '9+' : unreadTotal}</span>}
+        </NavLink>
       </nav>
       <div className="topbar-right desktop-only">
         {!loading &&
@@ -52,18 +57,40 @@ export function TopBar() {
 const ICON = { size: 22, strokeWidth: 1.5 } as const
 
 // Signed out (or not verified yet), Saved, Messages and Me open the sign-up sheet.
-function NavTab({ to, icon, label, gate }: { to: string; icon: ReactNode; label: string; gate?: () => void }) {
+function NavTab({
+  to,
+  icon,
+  label,
+  gate,
+  badge = 0,
+}: {
+  to: string
+  icon: ReactNode
+  label: string
+  gate?: () => void
+  badge?: number
+}) {
+  const pill = (
+    <span className="nav-pill">
+      {icon}
+      {badge > 0 && (
+        <span className="nav-badge" aria-label={`${badge} unread`}>
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
+    </span>
+  )
   if (gate) {
     return (
       <button type="button" className="nav-item" onClick={gate}>
-        <span className="nav-pill">{icon}</span>
+        {pill}
         {label}
       </button>
     )
   }
   return (
     <NavLink to={to} className="nav-item">
-      <span className="nav-pill">{icon}</span>
+      {pill}
       {label}
     </NavLink>
   )
@@ -71,6 +98,7 @@ function NavTab({ to, icon, label, gate }: { to: string; icon: ReactNode; label:
 
 export function BottomNav() {
   const { user, verified } = useAuth()
+  const { unreadTotal } = useInbox()
   const { open } = useSignUp()
   return (
     <nav className="bottom-nav" aria-label="Main">
@@ -83,6 +111,7 @@ export function BottomNav() {
         to="/messages"
         icon={<MessageCircle {...ICON} />}
         label="Messages"
+        badge={unreadTotal}
         gate={verified ? undefined : () => open({ reason: 'messages' })}
       />
       <NavTab
