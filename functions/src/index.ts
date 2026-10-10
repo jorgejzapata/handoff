@@ -5,3 +5,4 @@ initializeApp()
 export { listingPage } from './share.js'
 export { onNewMessage } from './email.js'
 export { expireListings } from './expiry.js'
+export { onUserVerified } from './welcome.js'

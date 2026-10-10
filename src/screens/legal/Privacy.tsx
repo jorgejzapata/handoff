@@ -93,8 +93,8 @@ const sections: LegalSection[] = [
             Terms, and review reports;
           </li>
           <li>
-            communicate with you about your account, including verification, security and service notices, and, unless
-            you turn them off, emails letting you know about new messages;
+            communicate with you about your account, including verification, a one-time welcome email, security and
+            service notices, and, unless you turn them off, emails letting you know about new messages;
           </li>
           <li>understand usage and improve the Service, using aggregated or de-identified information where possible;</li>
           <li>process payments for optional paid features, if offered; and</li>

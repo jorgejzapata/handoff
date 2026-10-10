@@ -115,6 +115,18 @@ describe('users/{uid}', () => {
       await assertFails(updateDoc(ref, { genderSelfDescribe: 'x'.repeat(31) }))
     })
 
+    test('verifiedAt is set once, only by a verified student, at server time', async () => {
+      const unverified = env.authenticatedContext('maya', maya).firestore()
+      await assertFails(updateDoc(doc(unverified, 'users/maya'), { verifiedAt: serverTimestamp() }))
+      const verified = env.authenticatedContext('maya', { ...maya, email_verified: true }).firestore()
+      const ref = doc(verified, 'users/maya')
+      await assertFails(updateDoc(ref, { verifiedAt: Timestamp.fromMillis(0) }))
+      await assertFails(updateDoc(ref, { verifiedAt: serverTimestamp(), signupReason: 'hacking' }))
+      await assertSucceeds(updateDoc(ref, { verifiedAt: serverTimestamp(), signupReason: 'say-hi' }))
+      await assertFails(updateDoc(ref, { verifiedAt: serverTimestamp() })) // only once
+      await assertFails(updateDoc(ref, { signupReason: 'publish' }))
+    })
+
     test('message-email setting is a single on/off switch', async () => {
       const db = env.authenticatedContext('maya', maya).firestore()
       const ref = doc(db, 'users/maya')

@@ -57,7 +57,16 @@ service cloud.firestore {
       allow update: if isOwner(uid)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
              ['firstName', 'photoUrl', 'gradYear', 'bio', 'gender', 'genderSelfDescribe',
-              'notificationPrefs', 'onboardingStep', 'lastActiveAt'])
+              'notificationPrefs', 'onboardingStep', 'lastActiveAt', 'verifiedAt', 'signupReason'])
+        // verifiedAt is set once, by a verified student, at the server's time.
+        // It triggers the welcome email.
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['verifiedAt'])
+            || (!('verifiedAt' in resource.data)
+              && request.resource.data.verifiedAt == request.time
+              && request.auth.token.email_verified == true))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['signupReason'])
+            || (!('signupReason' in resource.data)
+              && request.resource.data.signupReason in ['say-hi', 'publish', 'save', 'messages', 'login']))
         && (!('notificationPrefs' in request.resource.data)
             || (request.resource.data.notificationPrefs is map
               && request.resource.data.notificationPrefs.keys().hasOnly(['email'])

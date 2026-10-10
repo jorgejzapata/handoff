@@ -10,6 +10,7 @@ import { usingEmulators } from '../lib/firebase'
 import { getDraftPointer } from '../lib/draftCarry'
 import { fetchListing, listerSince, publishDraftById } from '../lib/listings'
 import { savePendingListing } from '../lib/saved'
+import { markVerified } from '../lib/users'
 import { findMyConversation, startConversation } from '../lib/messages'
 
 const RESEND_SECONDS = 60
@@ -42,6 +43,7 @@ export default function Verify() {
   const finish = useCallback(async () => {
     if (finished.current) return
     finished.current = true
+    if (user) await markVerified(user.uid, pending?.reason)
     clearPending()
 
     if (pending?.reason === 'publish' && user) {

@@ -4,7 +4,7 @@ import { onIdTokenChanged } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { isVerifiedCsu } from '../lib/auth'
-import { fetchProfile } from '../lib/users'
+import { fetchProfile, markVerified } from '../lib/users'
 
 // What the student was doing when the sign-up sheet opened, so Verify can
 // put them right back there. Kept in localStorage so it survives the trip to
@@ -74,6 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [, setVersion] = useState(0)
   const [photoUrl, setPhotoUrl] = useState<string | undefined>()
   const uid = user && !user.isAnonymous ? user.uid : null
+
+  const verifiedNow = isVerifiedCsu(user)
+  useEffect(() => {
+    // Give the Verify screen a moment to record why they signed up first.
+    if (!uid || !verifiedNow) return
+    const t = setTimeout(() => void markVerified(uid, readPending()?.reason), 4000)
+    return () => clearTimeout(t)
+  }, [uid, verifiedNow])
 
   // The auth profile usually has the photo; fall back to the users doc.
   useEffect(() => {
