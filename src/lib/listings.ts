@@ -113,7 +113,21 @@ export interface PrivateLocation {
   exactLng: number
 }
 
-export const AMENITIES = ['Parking', 'In-unit laundry', 'A/C', 'Dishwasher', 'Pets OK', 'Bike storage', 'Yard', 'Gym']
+export const AMENITIES = [
+  'Parking',
+  'In-unit laundry',
+  'Laundry on site',
+  'A/C',
+  'Dishwasher',
+  'Pets OK',
+  'Wi-Fi included',
+  'Bike storage',
+  'On a bus line',
+  'Gym',
+  'Pool or hot tub',
+  'Patio',
+  'Yard',
+]
 
 export const LIMITS = {
   rentMin: 100,

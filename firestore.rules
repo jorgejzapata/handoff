@@ -90,7 +90,7 @@ service cloud.firestore {
         && (!('approxLat' in d) || d.approxLat is number)
         && (!('approxLng' in d) || d.approxLng is number)
         && (!('distanceToCampusMi' in d) || (d.distanceToCampusMi is number && d.distanceToCampusMi >= 0 && d.distanceToCampusMi <= 100))
-        && (!('amenities' in d) || (d.amenities is list && d.amenities.size() <= 12))
+        && (!('amenities' in d) || (d.amenities is list && d.amenities.size() <= 20))
         && (!('title' in d) || isShortString(d.title, 0, 60))
         && (!('description' in d) || isShortString(d.description, 0, 1000))
         && (!('photos' in d) || (d.photos is list && d.photos.size() <= 8))
