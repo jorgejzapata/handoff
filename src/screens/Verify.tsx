@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useNavigate, useSearchParams } from 'react-router'
 import { Mail, CircleCheck } from 'lucide-react'
 import { FirebaseError } from 'firebase/app'
+import { applyActionCode } from 'firebase/auth'
 import { clearPending, readPending, useAuth } from '../components/AuthProvider'
 import type { PendingAction } from '../components/AuthProvider'
 import { useToast } from '../components/Toast'
 import { logOut, sendVerification } from '../lib/auth'
-import { usingEmulators } from '../lib/firebase'
+import { auth, usingEmulators } from '../lib/firebase'
 import { getDraftPointer } from '../lib/draftCarry'
 import { fetchListing, listerSince, publishDraftById } from '../lib/listings'
 import { savePendingListing } from '../lib/saved'
@@ -228,6 +229,71 @@ export function Verified() {
         >
           Continue
         </Link>
+      </div>
+    </div>
+  )
+}
+
+// Where the verification email's button lands. Nothing happens until the
+// student taps Verify: school email scanners (like Microsoft's) open every
+// link in an email, and Firebase codes work only once, so verifying on page
+// load would let the scanner use up the link before the student gets there.
+export function ConfirmEmail() {
+  const { user, refresh } = useAuth()
+  const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const code = params.get('oobCode')
+  const [state, setState] = useState<'ready' | 'working' | 'failed'>(code ? 'ready' : 'failed')
+
+  async function confirm() {
+    if (!code) return
+    setState('working')
+    try {
+      await applyActionCode(auth, code)
+      if (user) await refresh().catch(() => false)
+      navigate('/verified', { replace: true })
+    } catch (err) {
+      // Already verified (an older link, or a second tap)? Then all is well.
+      const done = user ? await refresh().catch(() => false) : false
+      if (done) {
+        navigate('/verified', { replace: true })
+        return
+      }
+      console.error('[handoff] confirm email', err)
+      setState('failed')
+    }
+  }
+
+  if (state === 'failed') {
+    return (
+      <div className="page verify">
+        <Mail size={48} strokeWidth={1.5} aria-hidden="true" className="verify-icon" />
+        <h1 className="title">That link didn't work</h1>
+        <p>It may have expired or already been used. If Handoff already shows you as verified, you're all set. If not, get a fresh link.</p>
+        <div className="verify-actions">
+          {user ? (
+            <Link to="/verify" className="btn btn-primary btn-block">
+              Send a new link
+            </Link>
+          ) : (
+            <Link to="/" className="btn btn-primary btn-block">
+              Log in to get a new link
+            </Link>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="page verify">
+      <Mail size={48} strokeWidth={1.5} aria-hidden="true" className="verify-icon" />
+      <h1 className="title">Verify your school email</h1>
+      <p>One tap and you can message listers and post your place.</p>
+      <div className="verify-actions">
+        <button type="button" className="btn btn-primary btn-block" onClick={confirm} disabled={state === 'working'}>
+          {state === 'working' ? 'Verifying…' : 'Verify my email'}
+        </button>
       </div>
     </div>
   )

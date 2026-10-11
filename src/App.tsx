@@ -25,7 +25,7 @@ import ListingDetail from './screens/ListingDetail'
 import PostListing from './screens/post/PostListing'
 import PostLive from './screens/post/PostLive'
 import ProfileSetup from './screens/ProfileSetup'
-import Verify, { Verified } from './screens/Verify'
+import Verify, { ConfirmEmail, Verified } from './screens/Verify'
 import Me from './screens/Me'
 import { usingEmulators } from './lib/firebase'
 
@@ -183,6 +183,7 @@ export default function App() {
         <Route element={<TopBarOnly />}>
           <Route path="verify" element={<Verify />} />
           <Route path="verified" element={<Verified />} />
+          <Route path="confirm-email" element={<ConfirmEmail />} />
           <Route path="post/live/:id" element={<PostLive />} />
           <Route path="onboarding" element={<ProfileSetup />} />
           <Route path="admin" element={<AdminGate />} />

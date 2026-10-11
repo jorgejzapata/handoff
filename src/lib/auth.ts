@@ -12,7 +12,8 @@ import {
 } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
-import { auth, db } from './firebase'
+import { httpsCallable } from 'firebase/functions'
+import { auth, db, functions, usingEmulators } from './firebase'
 import { MARKET_ID } from '../config'
 import { captureAnonDraft, restoreDraft } from './draftCarry'
 
@@ -36,8 +37,21 @@ function verifyContinueUrl() {
   return { url: `${window.location.origin}/verified` }
 }
 
+// Verification emails go out through Resend from handoffsublease.com (the
+// sendVerificationEmail function). If that fails for any reason other than
+// too many tries, Firebase's built-in email is the backup. On the local
+// emulators no real email is sent; the link shows in the emulator UI.
 export async function sendVerification(user: User) {
-  await sendEmailVerification(user, verifyContinueUrl())
+  if (usingEmulators) return sendEmailVerification(user, verifyContinueUrl())
+  try {
+    await httpsCallable(functions, 'sendVerificationEmail')()
+  } catch (err) {
+    if (err instanceof FirebaseError && err.code === 'functions/resource-exhausted') {
+      throw new FirebaseError('auth/too-many-requests', err.message)
+    }
+    console.error('[handoff] verification email via Resend failed, using Firebase', err)
+    await sendEmailVerification(user, verifyContinueUrl())
+  }
 }
 
 async function ensureUserDoc(user: User, firstName: string) {

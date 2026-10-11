@@ -8,6 +8,7 @@ import {
 } from 'firebase/auth'
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
 import { connectStorageEmulator, getStorage } from 'firebase/storage'
+import { getFunctions } from 'firebase/functions'
 import { getAnalytics, isSupported, setAnalyticsCollectionEnabled } from 'firebase/analytics'
 import { analyticsAllowed } from './settings'
 import { DEV, PROD } from '../firebaseProjects'
@@ -25,6 +26,7 @@ export const auth = initializeAuth(app, {
 })
 export const db = getFirestore(app)
 export const storage = getStorage(app)
+export const functions = getFunctions(app, 'us-central1')
 
 // `npm run dev` talks to the local emulators, never the real project.
 // Set VITE_USE_EMULATORS=false in .env.local to point dev at the real project.
