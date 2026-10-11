@@ -36,8 +36,8 @@ const sections: LegalSection[] = [
         <ul className="legal-list">
           <li>be at least 18 years of age and legally able to enter into a binding contract;</li>
           <li>
-            be a current student at a college or university and verify a school email address that we accept
-            (currently addresses ending in .edu);
+            provide a working email address you control (you may optionally verify a school email address, currently
+            one ending in .edu, to show a Verified student badge and receive any student pricing we offer);
           </li>
           <li>not have been previously suspended or removed from the Service; and</li>
           <li>not be prohibited from using the Service under any applicable law.</li>
@@ -220,7 +220,7 @@ const sections: LegalSection[] = [
     body: (
       <>
         <p>
-          The Service allows verified members to exchange messages, photos and documents. Messages are delivered to
+          The Service allows members to exchange messages, photos and documents. Messages are delivered to
           the members in the conversation and may be reviewed by us when reported, when reasonably necessary to
           investigate a violation of these Terms, to protect the safety of any person, or as required by law. Please
           do not send government identification numbers, financial account numbers or other highly sensitive

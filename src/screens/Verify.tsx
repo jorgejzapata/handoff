@@ -1,116 +1,38 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
-import { Mail, CircleCheck } from 'lucide-react'
+import { Mail, CircleCheck, BadgeCheck } from 'lucide-react'
 import { FirebaseError } from 'firebase/app'
 import { applyActionCode } from 'firebase/auth'
-import { clearPending, readPending, useAuth } from '../components/AuthProvider'
-import type { PendingAction } from '../components/AuthProvider'
+import { useAuth } from '../components/AuthProvider'
 import { useToast } from '../components/Toast'
-import { logOut, sendVerification } from '../lib/auth'
+import { isStudentEmail, sendVerification } from '../lib/auth'
 import { auth, usingEmulators } from '../lib/firebase'
-import { getDraftPointer } from '../lib/draftCarry'
-import { fetchListing, listerSince, publishDraftById } from '../lib/listings'
-import { savePendingListing } from '../lib/saved'
-import { markVerified } from '../lib/users'
-import { findMyConversation, startConversation } from '../lib/messages'
 
 const RESEND_SECONDS = 60
 
-function pendingLine(p: PendingAction | null) {
-  switch (p?.reason) {
-    case 'say-hi':
-      return p.message
-        ? `Your message to ${p.listerName ?? 'the lister'} is ready. It sends the moment you're verified.`
-        : `Once you're verified, we'll take you right back to ${p.listerName ? `${p.listerName}'s place` : 'that place'}.`
-    case 'publish':
-      return "Your listing goes live the moment you're verified."
-    case 'save':
-      return "That place saves the moment you're verified."
-    default:
-      return null
-  }
-}
-
-// "Check your school inbox". Watches for verification and continues on its own.
+// Optional: confirm a school (.edu) email for the "Verified student" badge and
+// student perks. Nobody has to do this to use Handoff, so nothing waits on it.
 export default function Verify() {
-  const { user, loading, verified, refresh } = useAuth()
+  const { user, loading, studentVerified, refresh } = useAuth()
   const navigate = useNavigate()
   const toast = useToast()
-  const [pending] = useState(readPending)
-  const [cooldown, setCooldown] = useState(RESEND_SECONDS)
-  const [resendNote, setResendNote] = useState<string | null>(null)
-  const finished = useRef(false)
+  const [sent, setSent] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
+  const [note, setNote] = useState<string | null>(null)
+  const done = useRef(false)
 
-  const finish = useCallback(async () => {
-    if (finished.current) return
-    finished.current = true
-    if (user) await markVerified(user.uid, pending?.reason)
-    clearPending()
-
-    if (pending?.reason === 'publish' && user) {
-      const id = getDraftPointer() ?? pending.listingId
-      try {
-        const live =
-          !!id &&
-          (await publishDraftById(id, user.uid, {
-            firstName: user.displayName || 'A student',
-            since: listerSince(user.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date()),
-          }))
-        if (live) {
-          navigate(`/post/live/${id}`, { replace: true })
-          return
-        }
-        toast('Almost there. Finish the missing parts, then publish.')
-      } catch (e) {
-        console.error('[handoff] publish after verify', e)
-        toast("Couldn't publish yet. Check your listing and try again.")
-      }
-      navigate('/post', { replace: true })
-      return
-    }
-
-    if (pending?.reason === 'say-hi' && pending.listingId && pending.message && user) {
-      try {
-        const existing = await findMyConversation(pending.listingId, user.uid)
-        if (existing) {
-          navigate(`/messages/${existing}`, { replace: true })
-          return
-        }
-        const listing = await fetchListing(pending.listingId)
-        if (listing?.status === 'active') {
-          const id = await startConversation(listing, user, pending.message)
-          toast(`You're verified. Your message to ${listing.lister.firstName} is sent.`)
-          navigate(`/messages/${id}`, { replace: true })
-          return
-        }
-        toast('That place is no longer available.')
-      } catch (e) {
-        console.error('[handoff] say hi after verify', e)
-        toast("You're verified, but the message didn't send. Try Say hi again.")
-      }
-      navigate(pending.returnTo ?? '/', { replace: true })
-      return
-    }
-
-    if (pending?.reason === 'save' && pending.listingId && user) {
-      const ok = await savePendingListing(user.uid, pending.listingId).catch(() => false)
-      toast(ok ? "You're verified. That place is in Saved." : "You're verified")
-      navigate(pending.returnTo ?? '/', { replace: true })
-      return
-    }
-
-    toast("You're verified")
-    navigate(pending?.returnTo ?? '/', { replace: true })
-  }, [navigate, pending, toast, user])
-
-  // Already verified (or verified on another device): move on.
+  // Verified (here or on another device): celebrate and head back.
   useEffect(() => {
-    if (verified) void finish()
-  }, [verified, finish])
+    if (!studentVerified || done.current) return
+    done.current = true
+    toast("You're a verified student")
+    navigate('/me', { replace: true })
+  }, [studentVerified, navigate, toast])
 
-  // Check every few seconds, and right away when the tab gets focus again.
+  // Once a link is out, check every few seconds and when the tab gets focus.
   useEffect(() => {
-    if (!user || verified) return
+    if (!user || !sent || studentVerified) return
     const check = () => refresh().catch(() => false)
     const timer = setInterval(check, 4000)
     const onFocus = () => document.visibilityState === 'visible' && check()
@@ -121,7 +43,7 @@ export default function Verify() {
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onFocus)
     }
-  }, [user, verified, refresh])
+  }, [user, sent, studentVerified, refresh])
 
   useEffect(() => {
     if (cooldown <= 0) return
@@ -142,43 +64,78 @@ export default function Verify() {
     )
   }
 
-  async function resend() {
-    if (!user || cooldown > 0) return
-    setResendNote(null)
+  if (!isStudentEmail(user.email)) {
+    return (
+      <div className="page verify">
+        <BadgeCheck size={48} strokeWidth={1.5} aria-hidden="true" className="verify-icon" />
+        <h1 className="title">Student verification</h1>
+        <p>
+          The Verified student badge is for school emails (ending in .edu). You signed up with{' '}
+          <strong>{user.email}</strong>, and everything on Handoff works the same without it.
+        </p>
+        <div className="verify-actions">
+          <Link to="/me" className="btn btn-secondary btn-block">
+            Back
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  async function send() {
+    if (!user || sending || cooldown > 0) return
+    setSending(true)
+    setNote(null)
     try {
       await sendVerification(user)
-      setResendNote('Sent. Give it a minute.')
+      setSent(true)
       setCooldown(RESEND_SECONDS)
+      setNote(sent ? 'Sent again. Give it a minute.' : null)
     } catch (err) {
-      setResendNote(
+      setNote(
         err instanceof FirebaseError && err.code === 'auth/too-many-requests'
-          ? 'Too many tries. Wait a few minutes, then resend.'
+          ? 'Too many tries. Wait a few minutes, then try again.'
           : "Couldn't send it. Try again in a minute.",
       )
+    } finally {
+      setSending(false)
     }
   }
 
-  // An unverified account with a typo'd email is useless; remove it and start over.
-  async function changeEmail() {
-    try {
-      await user?.delete()
-    } catch {
-      await logOut()
-    }
-    navigate(pending?.returnTo ?? '/', { replace: true })
-    toast('Start again with the right email.')
+  if (!sent) {
+    return (
+      <div className="page verify">
+        <BadgeCheck size={48} strokeWidth={1.5} aria-hidden="true" className="verify-icon" />
+        <h1 className="title">Get your Verified student badge</h1>
+        <p>
+          Confirm <strong>{user.email}</strong> and your listings show a Verified student badge. Verified students will
+          also get a discount on boosts.
+        </p>
+        <div className="verify-actions">
+          <button type="button" className="btn btn-primary btn-block" onClick={send} disabled={sending}>
+            {sending ? 'Sending…' : 'Email me a link'}
+          </button>
+          {note && (
+            <p className="caption muted center" role="status">
+              {note}
+            </p>
+          )}
+          <Link to="/me" className="link-btn center-block">
+            Maybe later
+          </Link>
+        </div>
+      </div>
+    )
   }
-
-  const line = pendingLine(pending)
 
   return (
     <div className="page verify">
       <Mail size={48} strokeWidth={1.5} aria-hidden="true" className="verify-icon" />
       <h1 className="title">Check your school inbox</h1>
       <p>
-        We sent a link to <strong>{user.email}</strong>. Tap it, then come back here.
+        We sent a link to <strong>{user.email}</strong>. Tap it, then come back here. You can keep using Handoff in the
+        meantime.
       </p>
-      {line && <p className="notice">{line}</p>}
       {usingEmulators && (
         <p className="notice caption">
           Dev mode: no real email is sent. Open the link from the emulator's terminal output or the Auth tab at
@@ -190,19 +147,19 @@ export default function Verify() {
         <a className="btn btn-primary btn-block" href="https://outlook.office.com/mail/" target="_blank" rel="noreferrer">
           Open Outlook
         </a>
-        <button type="button" className="btn btn-secondary btn-block" onClick={resend} disabled={cooldown > 0}>
+        <button type="button" className="btn btn-secondary btn-block" onClick={send} disabled={sending || cooldown > 0}>
           {cooldown > 0 ? `Resend link in ${cooldown}s` : 'Resend link'}
         </button>
-        {resendNote && (
+        {note && (
           <p className="caption muted center" role="status">
-            {resendNote}
+            {note}
           </p>
         )}
-        <button type="button" className="link-btn center-block" onClick={changeEmail}>
-          Wrong email? Change it
-        </button>
+        <Link to="/me" className="link-btn center-block">
+          Done for now
+        </Link>
       </div>
-      <p className="caption muted center">Not there? Check Junk. New senders sometimes land there.</p>
+      <p className="caption muted center">Not there? Check Junk or Quarantine. School email can take a few minutes.</p>
     </div>
   )
 }
@@ -210,7 +167,6 @@ export default function Verify() {
 // Where the verification link lands, possibly on a different device.
 export function Verified() {
   const { user, refresh } = useAuth()
-  const [pending] = useState(readPending)
 
   useEffect(() => {
     if (user) refresh().catch(() => {})
@@ -219,14 +175,10 @@ export function Verified() {
   return (
     <div className="page verify">
       <CircleCheck size={48} strokeWidth={1.5} aria-hidden="true" className="verify-icon" />
-      <h1 className="title">You're verified!</h1>
-      <p className="muted">You can message listers and post your place.</p>
+      <h1 className="title">You're a verified student!</h1>
+      <p className="muted">Your listings now show the Verified student badge.</p>
       <div className="verify-actions">
-        <Link
-          to={pending?.returnTo ?? '/'}
-          className="btn btn-accent btn-block"
-          onClick={() => clearPending()}
-        >
+        <Link to={user ? '/me' : '/'} className="btn btn-accent btn-block">
           Continue
         </Link>
       </div>
@@ -289,7 +241,7 @@ export function ConfirmEmail() {
     <div className="page verify">
       <Mail size={48} strokeWidth={1.5} aria-hidden="true" className="verify-icon" />
       <h1 className="title">Verify your school email</h1>
-      <p>One tap and you can message listers and post your place.</p>
+      <p>One tap to confirm it's you and get your Verified student badge.</p>
       <div className="verify-actions">
         <button type="button" className="btn btn-primary btn-block" onClick={confirm} disabled={state === 'working'}>
           {state === 'working' ? 'Verifying…' : 'Verify my email'}

@@ -16,7 +16,7 @@ import { fetchProfile, saveProfile } from '../lib/users'
 type Sheet_ = 'password' | 'delete' | null
 
 export default function Account() {
-  const { user } = useAuth()
+  const { user, studentVerified } = useAuth()
   const toast = useToast()
   const [theme, setThemeState] = useState<Theme>(getTheme)
   const [analytics, setAnalytics] = useState(analyticsAllowed)
@@ -69,10 +69,12 @@ export default function Account() {
 
       <section className="settings-group" aria-label="Login">
         <div className="settings-row">
-          <span className="settings-label">School email</span>
+          <span className="settings-label">Email</span>
           <span className="settings-value">
             <span className="settings-email">{user.email}</span>
-            <BadgeCheck size={16} strokeWidth={1.5} className="verified-icon" aria-label="Verified" />
+            {studentVerified && (
+              <BadgeCheck size={16} strokeWidth={1.5} className="verified-icon" aria-label="Verified student" />
+            )}
           </span>
         </div>
         {usesPassword(user) && (

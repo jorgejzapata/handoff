@@ -39,6 +39,9 @@ export interface AdminUser {
   email: string
   createdAt: Date | null
   photoUrl?: string
+  birthYear?: number
+  gender?: string
+  studentVerified: boolean // confirmed a school email (verifiedAt set)
 }
 
 export interface AdminReport {
@@ -75,6 +78,9 @@ export async function fetchAdminData() {
     email: d.data().email ?? '',
     createdAt: toDate(d.data().createdAt),
     photoUrl: d.data().photoUrl,
+    birthYear: typeof d.data().birthYear === 'number' ? d.data().birthYear : undefined,
+    gender: d.data().gender,
+    studentVerified: !!d.data().verifiedAt,
   }))
   const reports: AdminReport[] = reportsSnap.docs.map((d) => ({
     id: d.id,
@@ -143,6 +149,37 @@ export function computeMetrics(listings: Listing[], users: AdminUser[], reports:
     openReports: reports.filter((r) => r.status === 'open').length,
     newListingsByDay: countBy(published.map((l) => l.postedAt)),
     fillsByDay: countBy(filled.map((l) => l.filledAt)),
+  }
+}
+
+// ---- Who's signing up (age and gender, in aggregate) ----
+
+export const AGE_BANDS = ['18–20', '21–22', '23–25', '26–34', '35+'] as const
+const GENDER_LABELS: Record<string, string> = { woman: 'Women', man: 'Men', nonbinary: 'Non-binary', self: 'Self-described' }
+
+export function computeDemographics(users: AdminUser[], now = new Date()) {
+  const ageBand = (birthYear?: number) => {
+    if (!birthYear) return 'Not given'
+    const age = now.getFullYear() - birthYear
+    if (age <= 20) return '18–20'
+    if (age <= 22) return '21–22'
+    if (age <= 25) return '23–25'
+    if (age <= 34) return '26–34'
+    return '35+'
+  }
+  const tally = (keys: string[], order: string[]) => {
+    const m = new Map<string, number>()
+    for (const k of keys) m.set(k, (m.get(k) ?? 0) + 1)
+    return order.map((label) => ({ label, count: m.get(label) ?? 0 })).filter((r) => r.count > 0 || r.label !== 'Not given')
+  }
+  return {
+    total: users.length,
+    verifiedStudents: users.filter((u) => u.studentVerified).length,
+    ages: tally(users.map((u) => ageBand(u.birthYear)), [...AGE_BANDS, 'Not given']),
+    genders: tally(
+      users.map((u) => (u.gender ? GENDER_LABELS[u.gender] ?? 'Self-described' : 'Not given')),
+      [...Object.values(GENDER_LABELS), 'Not given'],
+    ),
   }
 }
 

@@ -53,7 +53,7 @@ export default function Home() {
           </h1>
           <p className="lead">Find a room for a semester, or hand off your lease to another student.</p>
           <ul className="hero-points" aria-label="Why Handoff">
-            {['Free to post', 'Verified students only', 'No fees to message'].map((t) => (
+            {['Free to post', 'Sign up in seconds', 'No fees to message'].map((t) => (
               <li key={t}>
                 <Check size={16} strokeWidth={2} aria-hidden="true" />
                 {t}
@@ -188,7 +188,7 @@ export default function Home() {
           {(
             [
               [PencilLine, 'Post for free', 'Rooms and whole-place lease takeovers, in about 5 minutes.'],
-              [MessageCircle, 'Chat with verified students', 'Only students with a verified school email can message you.'],
+              [MessageCircle, 'Chat right in Handoff', 'Message listers without sharing your number. Look for the Verified student badge.'],
               [Handshake, 'Hand it off', 'Sort out the lease with your landlord, then mark it filled.'],
             ] as const
           ).map(([Icon, title, body], i) => (
@@ -209,8 +209,8 @@ export default function Home() {
       <section className="notice">
         <ShieldCheck size={20} strokeWidth={1.5} aria-hidden="true" />
         <div>
-          <p className="notice-title">Only verified students can message listers.</p>
-          <p className="caption muted">Email verification does not verify the property or lease.</p>
+          <p className="notice-title">See the place before you send money.</p>
+          <p className="caption muted">The Verified student badge confirms a school email, not the property or lease.</p>
         </div>
       </section>
 

@@ -20,7 +20,7 @@ export default function ListingDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { open } = useSignUp()
-  const { rawUser, verified, loading: authLoading } = useAuth()
+  const { rawUser, member, loading: authLoading } = useAuth()
   const { conversations } = useInbox()
   const toast = useToast()
   const [listing, setListing] = useState<Listing | null | undefined>(undefined)
@@ -59,7 +59,7 @@ export default function ListingDetail() {
   const isOwn = !!rawUser && rawUser.uid === listing.ownerId
   const closed = listing.status === 'filled' || listing.status === 'expired'
   const existingChat = conversations?.find((c) => c.listingId === listing.id && c.seekerId === rawUser?.uid)
-  const report = () => (verified ? setSheet('report') : open({ reason: 'login' }))
+  const report = () => (member ? setSheet('report') : open({ reason: 'login' }))
 
   async function share() {
     const url = `${window.location.origin}/listings/${listing!.id}`

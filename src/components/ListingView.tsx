@@ -261,10 +261,12 @@ export function ListerCard({ lister }: { lister: Listing['lister'] }) {
       )}
       <div>
         <p className="lister-name">{lister.firstName}</p>
-        <p className="verified">
-          <BadgeCheck size={16} strokeWidth={1.5} aria-hidden="true" />
-          Verified student
-        </p>
+        {lister.verified && (
+          <p className="verified">
+            <BadgeCheck size={16} strokeWidth={1.5} aria-hidden="true" />
+            Verified student
+          </p>
+        )}
         <p className="caption muted">
           {[lister.year, lister.since && `On Handoff since ${lister.since}`].filter(Boolean).join(' · ')}
         </p>

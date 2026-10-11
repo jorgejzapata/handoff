@@ -13,13 +13,26 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == uid;
     }
 
-    // A verified school email (any domain ending in .edu) whose account isn't
-    // suspended. Keep in sync with STUDENT_EMAIL_SUFFIXES in src/lib/auth.ts.
-    function isVerifiedStudent() {
+    // A real account (not an anonymous draft account) that isn't suspended.
+    // That's all it takes to message, save and post.
+    function isMember() {
+      return signedIn()
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && !exists(/databases/$(database)/documents/suspensions/$(request.auth.uid));
+    }
+
+    // Confirmed a school email (any domain ending in .edu): the Verified
+    // student badge and student perks. Optional. Keep in sync with
+    // STUDENT_EMAIL_SUFFIXES in src/lib/auth.ts.
+    function isStudentVerified() {
       return signedIn()
         && request.auth.token.email_verified == true
-        && request.auth.token.email.lower().matches('[^@]+@([a-z0-9-]+[.])+edu')
-        && !exists(/databases/$(database)/documents/suspensions/$(request.auth.uid));
+        && request.auth.token.email.lower().matches('[^@]+@([a-z0-9-]+[.])+edu');
+    }
+
+    // 18+, by birth year (someone turning 18 this year counts).
+    function validBirthYear(y) {
+      return y is int && y <= request.time.year() - 18 && y >= request.time.year() - 100;
     }
 
     // Admins: an admins/{uid} doc (added in the Firebase console) or an
@@ -42,27 +55,36 @@ service cloud.firestore {
 
       allow create: if isOwner(uid)
         && request.resource.data.keys().hasOnly(
-             ['firstName', 'email', 'schoolId', 'onboardingStep', 'createdAt', 'lastActiveAt'])
+             ['firstName', 'email', 'schoolId', 'onboardingStep', 'createdAt', 'lastActiveAt',
+              'birthYear', 'gender', 'genderSelfDescribe', 'signupReason'])
         && request.resource.data.keys().hasAll(['firstName', 'email', 'schoolId', 'createdAt'])
         && isShortString(request.resource.data.firstName, 1, 40)
         && request.resource.data.email == request.auth.token.email
         && request.resource.data.schoolId == 'csu'
         && request.resource.data.createdAt == request.time
         && (!('lastActiveAt' in request.resource.data) || request.resource.data.lastActiveAt == request.time)
-        && (!('onboardingStep' in request.resource.data) || isShortString(request.resource.data.onboardingStep, 1, 20));
+        && (!('onboardingStep' in request.resource.data) || isShortString(request.resource.data.onboardingStep, 1, 20))
+        && (!('birthYear' in request.resource.data) || validBirthYear(request.resource.data.birthYear))
+        && (!('gender' in request.resource.data) || request.resource.data.gender in ['woman', 'man', 'nonbinary', 'self'])
+        && (!('genderSelfDescribe' in request.resource.data) || isShortString(request.resource.data.genderSelfDescribe, 1, 30))
+        && (!('signupReason' in request.resource.data)
+            || request.resource.data.signupReason in ['say-hi', 'publish', 'save', 'messages', 'login']);
 
       // Owners can edit profile fields only. email, schoolId, createdAt and
       // status (set by Cloud Functions on suspension) are off limits.
       allow update: if isOwner(uid)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(
              ['firstName', 'photoUrl', 'gradYear', 'bio', 'gender', 'genderSelfDescribe',
-              'notificationPrefs', 'onboardingStep', 'lastActiveAt', 'verifiedAt', 'signupReason'])
-        // verifiedAt is set once, by a verified student, at the server's time.
-        // It triggers the welcome email.
+              'notificationPrefs', 'onboardingStep', 'lastActiveAt', 'verifiedAt', 'signupReason', 'birthYear'])
+        // verifiedAt is set once, when a school email is confirmed, at the
+        // server's time. Student perks (like the boost discount) key off it.
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['verifiedAt'])
             || (!('verifiedAt' in resource.data)
               && request.resource.data.verifiedAt == request.time
-              && request.auth.token.email_verified == true))
+              && isStudentVerified()))
+        // Birth year can be added once (accounts made before it was asked).
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['birthYear'])
+            || (!('birthYear' in resource.data) && validBirthYear(request.resource.data.birthYear)))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['signupReason'])
             || (!('signupReason' in resource.data)
               && request.resource.data.signupReason in ['say-hi', 'publish', 'save', 'messages', 'login']))
@@ -85,7 +107,7 @@ service cloud.firestore {
 
     // ---- listings/{listingId} ----
     // Drafts are written by their owner, including anonymous accounts (so a
-    // draft saves before signup). Going live needs a verified CSU email and
+    // draft saves before signup). Going live needs a real account and
     // every required field. Boost fields, counts, reportCount and the
     // hidden/removed statuses belong to Cloud Functions.
 
@@ -94,7 +116,7 @@ service cloud.firestore {
         'householdGenders', 'openTo', 'furnished', 'rentCents', 'utilitiesIncluded', 'utilitiesEstimateCents', 'depositNote',
         'availableFrom', 'availableTo', 'datesFlexible', 'neighborhood', 'approxLat', 'approxLng',
         'distanceToCampusMi', 'amenities', 'title', 'description', 'photos', 'landlordStatus',
-        'leaseAckAt', 'listerFirstName', 'listerPhotoUrl', 'listerYear', 'listerSince'];
+        'leaseAckAt', 'listerFirstName', 'listerPhotoUrl', 'listerYear', 'listerSince', 'listerVerified'];
     }
 
     // Who lives there / who can move in. Roommate preferences are only for
@@ -137,7 +159,10 @@ service cloud.firestore {
         && (!('listerFirstName' in d) || isShortString(d.listerFirstName, 1, 40))
         && (!('listerPhotoUrl' in d) || d.listerPhotoUrl == null || isShortString(d.listerPhotoUrl, 1, 1000))
         && (!('listerYear' in d) || d.listerYear == null || isShortString(d.listerYear, 1, 20))
-        && (!('listerSince' in d) || isShortString(d.listerSince, 1, 20));
+        && (!('listerSince' in d) || isShortString(d.listerSince, 1, 20))
+        // The badge only for someone who actually confirmed a school email.
+        && (!('listerVerified' in d) || d.listerVerified == false
+            || (d.listerVerified == true && isStudentVerified()));
     }
 
     // Everything a seeker needs before a listing can go live.
@@ -199,14 +224,14 @@ service cloud.firestore {
             && !changed().hasAny(['publishedAt', 'expiresAt', 'filledAt', 'filledViaHandoff']))
           // Publishing
           || (resource.data.status == 'draft' && request.resource.data.status == 'active'
-            && isVerifiedStudent()
+            && isMember()
             && publishable(request.resource.data)
             && request.resource.data.publishedAt == request.time
             && validExpiry(request.resource.data)
             && !changed().hasAny(['filledAt', 'filledViaHandoff']))
           // Editing a live listing
           || (resource.data.status == 'active' && request.resource.data.status == 'active'
-            && isVerifiedStudent()
+            && isMember()
             && publishable(request.resource.data)
             && !changed().hasAny(['publishedAt', 'filledAt', 'filledViaHandoff'])
             && (!changed().hasAny(['expiresAt']) || validExpiry(request.resource.data)))
@@ -217,7 +242,7 @@ service cloud.firestore {
             && !changed().hasAny(['publishedAt', 'expiresAt']))
           // Relisting a filled or expired listing
           || (resource.data.status in ['filled', 'expired'] && request.resource.data.status == 'active'
-            && isVerifiedStudent()
+            && isMember()
             && publishable(request.resource.data)
             && request.resource.data.publishedAt == request.time
             && validExpiry(request.resource.data)
@@ -257,7 +282,7 @@ service cloud.firestore {
           return get(/databases/$(database)/documents/listings/$(listingId)).data;
         }
 
-        allow create, update: if isOwner(saverId) && isVerifiedStudent()
+        allow create, update: if isOwner(saverId) && isMember()
           && request.resource.data.keys().hasOnly(['at'])
           && request.resource.data.at == request.time
           && savedListing().status == 'active'
@@ -289,7 +314,7 @@ service cloud.firestore {
     // expired places still show in the list. Only they can see it.
     match /users/{uid}/saved/{listingId} {
       allow read, delete: if isOwner(uid);
-      allow create, update: if isOwner(uid) && isVerifiedStudent()
+      allow create, update: if isOwner(uid) && isMember()
         && request.resource.data.keys().hasOnly(
              ['savedAt', 'title', 'rentCents', 'thumbUrl', 'availableFrom', 'availableTo', 'neighborhood'])
         && request.resource.data.savedAt == request.time
@@ -312,7 +337,7 @@ service cloud.firestore {
     }
 
     // ---- conversations/{listingId}_{seekerId} ----
-    // One thread per seeker and listing. Only verified CSU students can start
+    // One thread per seeker and listing. Any member can start
     // or write in one. Sending a message is one batch: the message, plus the
     // conversation's lastMessage and the other person's unread count + 1.
     // No Cloud Function needed.
@@ -361,7 +386,7 @@ service cloud.firestore {
     match /conversations/{convId} {
       allow get, list: if signedIn() && request.auth.uid in resource.data.participantIds;
 
-      allow create: if isVerifiedStudent()
+      allow create: if isMember()
         && request.resource.data.keys().hasOnly(['listingId', 'listerId', 'seekerId', 'participantIds',
              'listingTitle', 'listingThumbUrl', 'listingRentCents', 'listingFrom', 'listingTo',
              'listerFirstName', 'listerPhotoUrl', 'seekerFirstName', 'seekerPhotoUrl', 'lastMessage',
@@ -369,7 +394,7 @@ service cloud.firestore {
         && convId == request.resource.data.listingId + '_' + request.auth.uid
         && validNewConversation(request.resource.data);
 
-      allow update: if isVerifiedStudent()
+      allow update: if isMember()
         && request.auth.uid in resource.data.participantIds
         && (
           // Sending a message
@@ -442,7 +467,7 @@ service cloud.firestore {
         allow read: if signedIn()
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convId)).data.participantIds;
 
-        allow create: if isVerifiedStudent()
+        allow create: if isMember()
           && request.auth.uid in convAfter().participantIds
           && convAfter().blockedBy == null
           && request.resource.data.keys().hasOnly(['senderId', 'text', 'sentAt', 'type', 'attachment'])
@@ -479,7 +504,7 @@ service cloud.firestore {
     // ---- reports/{reportId} ----
     // Students create; only admins (custom claim) read and act on them.
     match /reports/{reportId} {
-      allow create: if isVerifiedStudent()
+      allow create: if isMember()
         && request.resource.data.keys().hasOnly(
              ['reporterId', 'targetType', 'targetId', 'reason', 'details', 'status', 'createdAt'])
         && request.resource.data.reporterId == request.auth.uid

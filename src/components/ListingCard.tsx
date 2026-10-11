@@ -40,10 +40,10 @@ export function BoostedTag() {
 
 export function SaveButton({ listing, floating = false }: { listing: Listing; floating?: boolean }) {
   const { open } = useSignUp()
-  const { user, verified } = useAuth()
+  const { user, member } = useAuth()
   const { isSaved, toggle } = useSaved()
   if (user && listing.ownerId === user.uid) return null // your own place
-  const on = verified && isSaved(listing.id)
+  const on = member && isSaved(listing.id)
   return (
     <button
       type="button"
@@ -53,7 +53,7 @@ export function SaveButton({ listing, floating = false }: { listing: Listing; fl
       onClick={(e) => {
         e.preventDefault()
         e.stopPropagation()
-        if (!verified) open({ reason: 'save', listingId: listing.id })
+        if (!member) open({ reason: 'save', listingId: listing.id })
         else void toggle(listing)
       }}
     >

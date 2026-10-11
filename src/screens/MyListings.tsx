@@ -296,7 +296,7 @@ export default function MyListings() {
           <h2 className="heading">Under review</h2>
           {underReview.map((l) => (
             <p key={l.id} className="notice">
-              “{l.title}” is under review. We'll be in touch at your school email.
+              “{l.title}” is under review. We'll be in touch by email.
             </p>
           ))}
         </section>

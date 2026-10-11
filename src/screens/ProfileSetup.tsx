@@ -9,6 +9,7 @@ import { uploadAvatar } from '../lib/photos'
 import { fetchProfile, saveProfile, YEARS } from '../lib/users'
 import { updateListerOnListings } from '../lib/listings'
 import { GENDERS, GENDER_SELF_MAX, invalidateMyGroup } from '../lib/gender'
+import { birthYearOptions, isAdultBirthYear } from '../lib/auth'
 import type { Gender } from '../lib/gender'
 
 // "Add a face to your name". Shown once, after a first listing goes live
@@ -26,6 +27,9 @@ export default function ProfileSetup() {
   const [bio, setBio] = useState('')
   const [gender, setGender] = useState<Gender | undefined>()
   const [genderSelf, setGenderSelf] = useState('')
+  // Only asked here for accounts made before signup asked for it.
+  const [needsBirthYear, setNeedsBirthYear] = useState(false)
+  const [birthYear, setBirthYear] = useState('')
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +43,7 @@ export default function ProfileSetup() {
       setBio(p.bio ?? '')
       setGender(p.gender)
       setGenderSelf(p.genderSelfDescribe ?? '')
+      setNeedsBirthYear(!p.birthYear)
     })
   }, [user])
 
@@ -76,6 +81,7 @@ export default function ProfileSetup() {
           bio: bio.trim(),
           gender: gender ?? deleteField(),
           genderSelfDescribe: gender === 'self' && genderSelf.trim() ? genderSelf.trim() : deleteField(),
+          ...(needsBirthYear && isAdultBirthYear(Number(birthYear)) ? { birthYear: Number(birthYear) } : {}),
           onboardingStep: 'done',
         })
         invalidateMyGroup()
@@ -170,6 +176,21 @@ export default function ProfileSetup() {
         )}
         <p className="helper">Only you see this. We use it to show places that are open to you. Leave it blank if you'd rather not say.</p>
       </fieldset>
+
+      {needsBirthYear && (
+        <div className="field">
+          <label htmlFor="birth-year">Birth year</label>
+          <select id="birth-year" className="input" value={birthYear} onChange={(e) => setBirthYear(e.target.value)}>
+            <option value="">Select year</option>
+            {birthYearOptions().map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          <p className="helper">Only you see this. Handoff is for people 18 and older.</p>
+        </div>
+      )}
 
       <div className="field">
         <label htmlFor="bio">Short bio</label>

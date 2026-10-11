@@ -5,10 +5,10 @@ import { checkIsAdmin } from '../lib/admin'
 import { useAuth } from '../components/AuthProvider'
 import { useSignUp } from '../components/SignUpSheet'
 import { useToast } from '../components/Toast'
-import { logOut } from '../lib/auth'
+import { isStudentEmail, logOut } from '../lib/auth'
 
 export default function Me() {
-  const { user, loading, verified, photoUrl } = useAuth()
+  const { user, loading, studentVerified, photoUrl } = useAuth()
   const { open } = useSignUp()
   const navigate = useNavigate()
   const toast = useToast()
@@ -50,23 +50,23 @@ export default function Me() {
         )}
         <div>
           <h1 className="title-sm">{name}</h1>
-          {verified ? (
+          {studentVerified ? (
             <p className="verified">
               <BadgeCheck size={16} strokeWidth={1.5} aria-hidden="true" />
               Verified student
             </p>
           ) : (
-            <Link to="/verify" className="unverified">
-              <CircleAlert size={16} strokeWidth={1.5} aria-hidden="true" />
-              Verify your school email
-            </Link>
+            isStudentEmail(user.email) && (
+              <Link to="/verify" className="unverified">
+                <CircleAlert size={16} strokeWidth={1.5} aria-hidden="true" />
+                Get your Verified student badge
+              </Link>
+            )
           )}
           <p className="caption muted">{user.email}</p>
-          {verified && (
-            <Link to="/onboarding?next=/me" className="text-link caption">
-              Edit profile
-            </Link>
-          )}
+          <Link to="/onboarding?next=/me" className="text-link caption">
+            Edit profile
+          </Link>
         </div>
       </section>
 

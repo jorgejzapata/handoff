@@ -16,10 +16,10 @@ const InboxContext = createContext<InboxState>({ conversations: null, unreadTota
 export const useInbox = () => useContext(InboxContext)
 
 export function InboxProvider({ children }: { children: ReactNode }) {
-  const { user, verified } = useAuth()
+  const { user, member } = useAuth()
   const [conversations, setConversations] = useState<Conversation[] | null>(null)
   const [error, setError] = useState(false)
-  const uid = verified ? user?.uid : undefined
+  const uid = member ? user?.uid : undefined
 
   useEffect(() => {
     setConversations(null)

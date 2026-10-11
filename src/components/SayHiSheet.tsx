@@ -23,9 +23,9 @@ function openingLine(listing: Listing) {
 }
 
 // Say hi: a prefilled first message, plus quick questions that each add a line.
-// Signed out, Send opens sign-up and the message sends once they're verified.
+// Signed out, Send opens sign-up and the message sends right after.
 export function SayHiSheet({ listing, onClose }: { listing: Listing; onClose: () => void }) {
-  const { user, verified } = useAuth()
+  const { user, member } = useAuth()
   const { open } = useSignUp()
   const navigate = useNavigate()
   const toast = useToast()
@@ -46,7 +46,7 @@ export function SayHiSheet({ listing, onClose }: { listing: Listing; onClose: ()
       toast(KEEP_IT_FRIENDLY)
       return // let them see the change before it goes
     }
-    if (!verified || !user) {
+    if (!member || !user) {
       onClose()
       open({ reason: 'say-hi', listerName: name, listingId: listing.id, message: text.trim() })
       return

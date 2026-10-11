@@ -1,19 +1,22 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { useLocation, useNavigate } from 'react-router'
-import { X } from 'lucide-react'
+import { useLocation } from 'react-router'
+import { Check, X } from 'lucide-react'
 import {
+  birthYearOptions,
   friendlyError,
-  isStudentEmail,
+  isAdultBirthYear,
   logInWithEmail,
+  MIN_AGE,
   resetPassword,
   signUpWithEmail,
 } from '../lib/auth'
-import { savePendingListing } from '../lib/saved'
 import type { FriendlyError } from '../lib/auth'
-import { clearPending, savePending, useAuth } from './AuthProvider'
+import { GENDERS, GENDER_SELF_MAX, invalidateMyGroup } from '../lib/gender'
+import type { Gender } from '../lib/gender'
+import { savePending, useAuth } from './AuthProvider'
 import type { PendingAction } from './AuthProvider'
-import { useToast } from './Toast'
+import { useFinishPending } from './useFinishPending'
 
 // The sign-up sheet opens only at the moment of intent: Say hi, Save or Publish.
 
@@ -45,13 +48,12 @@ function titleFor({ reason, listerName }: OpenArgs) {
 
 export function SignUpProvider({ children }: { children: ReactNode }) {
   const [args, setArgs] = useState<OpenArgs | null>(null)
-  const { user, verified } = useAuth()
-  const navigate = useNavigate()
+  const { member } = useAuth()
   const location = useLocation()
 
   const open = useCallback(
     (a: OpenArgs) => {
-      if (verified) return
+      if (member) return
       savePending({
         reason: a.reason,
         listerName: a.listerName,
@@ -59,10 +61,9 @@ export function SignUpProvider({ children }: { children: ReactNode }) {
         message: a.message,
         returnTo: location.pathname + location.search,
       })
-      if (user) navigate('/verify') // signed in, just not verified yet
-      else setArgs(a)
+      setArgs(a)
     },
-    [verified, user, navigate, location],
+    [member, location],
   )
 
   return (
@@ -81,6 +82,9 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
   const [firstName, setFirstName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [birthYear, setBirthYear] = useState('')
+  const [gender, setGender] = useState<Gender | undefined>()
+  const [genderSelf, setGenderSelf] = useState('')
   const [error, setError] = useState<FriendlyError | null>(null)
   const [busy, setBusy] = useState(false)
   const [resetSent, setResetSent] = useState(false)
@@ -88,8 +92,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
   // Focus the sheet itself, not a field, so the keyboard doesn't pop up until
   // the student taps a field. Screen readers still land inside the dialog.
   const sheetRef = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
-  const toast = useToast()
+  const finishPending = useFinishPending()
 
   useEffect(() => {
     sheetRef.current?.focus({ preventScroll: true })
@@ -137,16 +140,21 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
 
     if (mode === 'signup') {
       if (!firstName.trim()) return setError({ message: 'Add your first name.', field: 'name' })
-      if (!isStudentEmail(email))
-        return setError({
-          message: 'Handoff is for students right now. Use your school email (it ends in .edu).',
-          field: 'email',
-        })
+      if (!email.trim()) return setError({ message: 'Add your email.', field: 'email' })
       if (password.length < 8) return setError({ message: 'Use at least 8 characters.', field: 'password' })
+      if (!birthYear) return setError({ message: 'Pick your birth year.', field: 'birthYear' })
+      if (!isAdultBirthYear(Number(birthYear)))
+        return setError({ message: `You need to be ${MIN_AGE} or older to use Handoff.`, field: 'birthYear' })
       void run(async () => {
-        await signUpWithEmail(firstName, email, password)
+        const user = await signUpWithEmail(firstName, email, password, {
+          birthYear: Number(birthYear),
+          gender,
+          genderSelfDescribe: genderSelf,
+          reason: args.reason,
+        })
+        if (gender) invalidateMyGroup()
         onClose()
-        navigate('/verify')
+        await finishPending(user, { welcome: `Welcome to Handoff, ${firstName.trim()}!` })
       })
       return
     }
@@ -154,20 +162,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
     void run(async () => {
       const user = await logInWithEmail(email, password)
       onClose()
-      // Verify finishes a pending publish (and moves on right away if already verified).
-      if (args.reason === 'publish' || args.reason === 'say-hi') {
-        navigate('/verify')
-      } else if (user.emailVerified) {
-        clearPending()
-        if (args.reason === 'save' && args.listingId) {
-          const ok = await savePendingListing(user.uid, args.listingId).catch(() => false)
-          toast(ok ? 'Welcome back. Saved.' : 'Welcome back.')
-          return
-        }
-        toast(`Welcome back${user.displayName ? `, ${user.displayName}` : ''}.`)
-      } else {
-        navigate('/verify')
-      }
+      await finishPending(user, { welcome: `Welcome back${user.displayName ? `, ${user.displayName}` : ''}.` })
     })
   }
 
@@ -193,7 +188,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
         <h2 id={titleId} className="title-sm">
           {title}
         </h2>
-        {mode === 'signup' && <p className="muted">Listers only hear from verified students.</p>}
+        {mode === 'signup' && <p className="muted">Free, and you're in right away.</p>}
         {mode === 'reset' && !resetSent && <p className="muted">We'll email you a link to set a new one.</p>}
 
         {mode === 'reset' && resetSent ? (
@@ -213,7 +208,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
                 />
               </Field>
             )}
-            <Field id="su-email" label="School email" error={fieldError('email')}>
+            <Field id="su-email" label="Email" error={fieldError('email')}>
               <input
                 id="su-email"
                 className="input"
@@ -221,7 +216,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
                 inputMode="email"
                 autoComplete="email"
                 autoCapitalize="none"
-                placeholder="you@school.edu"
+                placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 aria-invalid={!!fieldError('email')}
@@ -255,6 +250,60 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
                   </button>
                 )}
               </Field>
+            )}
+
+            {mode === 'signup' && (
+              <>
+                <Field id="su-birth" label="Birth year" error={fieldError('birthYear')}>
+                  <select
+                    id="su-birth"
+                    className="input"
+                    autoComplete="bday-year"
+                    value={birthYear}
+                    onChange={(e) => setBirthYear(e.target.value)}
+                    aria-invalid={!!fieldError('birthYear')}
+                  >
+                    <option value="" disabled>
+                      Select year
+                    </option>
+                    {birthYearOptions().map((y) => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                  {!fieldError('birthYear') && <p className="helper">Handoff is for people {MIN_AGE} and older.</p>}
+                </Field>
+
+                <fieldset className="field chip-field">
+                  <legend className="label">Gender (optional)</legend>
+                  <div className="chips-wrap">
+                    {GENDERS.map(([g, label]) => (
+                      <button
+                        key={g}
+                        type="button"
+                        className={gender === g ? 'chip chip-on' : 'chip'}
+                        aria-pressed={gender === g}
+                        onClick={() => setGender(gender === g ? undefined : g)}
+                      >
+                        {gender === g && <Check size={14} strokeWidth={2} aria-hidden="true" />}
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {gender === 'self' && (
+                    <input
+                      className="input gender-self"
+                      aria-label="Your gender, in your words"
+                      maxLength={GENDER_SELF_MAX}
+                      placeholder="In your words"
+                      value={genderSelf}
+                      onChange={(e) => setGenderSelf(e.target.value)}
+                    />
+                  )}
+                  <p className="helper">Only you see this. It helps show places that are open to you.</p>
+                </fieldset>
+              </>
             )}
 
             {error && !error.field && (

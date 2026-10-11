@@ -3,7 +3,7 @@ import { KEEP_IT_FRIENDLY, hasBlockedLanguage, maskBlockedLanguage } from '../..
 import { Linkify } from '../../components/Linkify'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ArrowLeft, ArrowUp, BadgeCheck, EllipsisVertical, FileText, Info, MapPin, Paperclip, RotateCw, ShieldAlert, X } from 'lucide-react'
+import { ArrowLeft, ArrowUp, EllipsisVertical, FileText, Info, MapPin, Paperclip, RotateCw, ShieldAlert, X } from 'lucide-react'
 import { useAuth } from '../../components/AuthProvider'
 import { useToast } from '../../components/Toast'
 import { ConfirmDialog } from '../../components/Sheet'
@@ -257,10 +257,6 @@ export function Thread({ id }: { id: string }) {
         )}
         <div className="thread-who">
           <p className="lister-name">{other.firstName}</p>
-          <p className="verified caption">
-            <BadgeCheck size={14} strokeWidth={1.5} aria-hidden="true" />
-            Verified student
-          </p>
         </div>
         <div className="menu-wrap">
           <button

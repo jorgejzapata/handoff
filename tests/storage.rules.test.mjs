@@ -56,11 +56,12 @@ describe('chat attachments', () => {
     await assertSucceeds(uploadBytes(ref(s, 'chat-attachments/maya/l1_jake/b.pdf'), pdf, { contentType: 'application/pdf' }))
   })
 
-  test('no other file types, no other folders, no unverified accounts', async () => {
+  test('no other file types, no other folders, no anonymous accounts; unverified members are fine', async () => {
     const s = env.authenticatedContext('maya', maya).storage()
     await assertFails(uploadBytes(ref(s, 'chat-attachments/maya/l1_jake/c.zip'), pdf, { contentType: 'application/zip' }))
     await assertFails(uploadBytes(ref(s, 'chat-attachments/jake/l1_jake/a.jpg'), jpeg, asJpeg))
-    await assertFails(uploadBytes(ref(env.authenticatedContext('maya', unverified).storage(), 'chat-attachments/maya/l1_jake/a.jpg'), jpeg, asJpeg))
+    await assertSucceeds(uploadBytes(ref(env.authenticatedContext('maya', unverified).storage(), 'chat-attachments/maya/l1_jake/a.jpg'), jpeg, asJpeg))
+    await assertFails(uploadBytes(ref(env.authenticatedContext('maya', anon).storage(), 'chat-attachments/maya/l1_jake/b.jpg'), jpeg, asJpeg))
   })
 
   test("other people can't read through the SDK (only via the link in the chat)", async () => {

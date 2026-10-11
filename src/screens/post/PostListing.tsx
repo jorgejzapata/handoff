@@ -40,7 +40,7 @@ export default function PostListing() {
   const navigate = useNavigate()
   const toast = useToast()
   const { open } = useSignUp()
-  const { rawUser, user, verified, loading: authLoading } = useAuth()
+  const { rawUser, user, member, studentVerified, loading: authLoading } = useAuth()
 
   const [draft, setDraft] = useState<ListingDraft>({})
   const [draftId, setDraftId] = useState<string | null>(null)
@@ -168,7 +168,7 @@ export default function PostListing() {
     await flush()
     const id = idRef.current
     if (!id) return
-    if (!verified) {
+    if (!member) {
       open({ reason: 'publish', listingId: id })
       return
     }
@@ -177,6 +177,7 @@ export default function PostListing() {
       await publishListing(id, draft, {
         firstName: user?.displayName || 'A student',
         since: listerSince(user?.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date()),
+        verified: studentVerified,
       })
       clearListingsCache()
       setDraftPointer(null)

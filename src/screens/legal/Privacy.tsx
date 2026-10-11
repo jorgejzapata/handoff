@@ -27,7 +27,7 @@ const sections: LegalSection[] = [
         </p>
         <ul className="legal-list">
           <li>
-            <em>Account information:</em> your first name, university email address and password. Passwords are
+            <em>Account information:</em> your first name, email address, birth year and password. Passwords are
             handled by our authentication provider and are never visible to us.
           </li>
           <li>
@@ -82,7 +82,10 @@ const sections: LegalSection[] = [
       <>
         <p>We use personal information to:</p>
         <ul className="legal-list">
-          <li>create and secure your account and verify your university email address;</li>
+          <li>
+            create and secure your account, confirm you are 18 or older, and, if you choose, verify a school email
+            address for the Verified student badge and student pricing;
+          </li>
           <li>publish listings, display them on maps and in search, and enable messaging between members;</li>
           <li>
             show places that may be open to you, if you choose to provide your gender, and show listers aggregate
@@ -114,7 +117,8 @@ const sections: LegalSection[] = [
           area and the lister’s first name, profile photo, class year and member-since date, are visible to anyone
           using the Service. When you message another member, they can see your first name, profile photo and the
           messages and files you send. A listing’s exact address is shared only if the lister chooses to share it in a
-          conversation. Your email address, gender and saved places are not shown to other members.
+          conversation. Your email address, birth year, gender and saved places are not shown to other members. If
+          you verify a school email, your listings show a Verified student badge (not the email itself).
         </p>
         <p>
           <strong>With service providers</strong> who process information on our behalf and under our instructions:
@@ -123,7 +127,7 @@ const sections: LegalSection[] = [
           <li>Google (Firebase) for authentication, database, file storage, hosting and analytics;</li>
           <li>OpenFreeMap, which receives your IP address when your device loads map images;</li>
           <li>Photon by Komoot, which receives the text of address searches when a lister enters an address;</li>
-          <li>Resend, which delivers new-message email notifications on our behalf; and</li>
+          <li>Resend, which delivers our emails (such as welcome, new-message and verification emails) on our behalf; and</li>
           <li>Stripe, if you purchase a paid feature on the web, to process your payment.</li>
         </ul>
         <p>
@@ -147,12 +151,14 @@ const sections: LegalSection[] = [
   },
   {
     id: 'sensitive',
-    title: 'Gender and Other Sensitive Information',
+    title: 'Age, Gender and Other Sensitive Information',
     body: (
       <p>
-        Providing your gender is entirely optional, and you may describe it in your own words or decline to say. If you
-        provide it, it is visible only to you and is used solely to show listings that are open to you. You may change
-        or remove it at any time in your profile. We ask that you not include health information, government
+        We ask for your birth year to confirm you are 18 or older. Providing your gender is entirely optional, and you
+        may describe it in your own words or decline to say. Neither is shown to other members. We use your gender to
+        show listings that are open to you, and we use birth year and gender, combined across members, to understand
+        who uses Handoff in aggregate (for example, the share of members in an age range). We do not use them to
+        target you individually. You may change or remove your gender at any time in your profile. We ask that you not include health information, government
         identification numbers, financial account numbers or similar sensitive information in your profile, listings
         or messages.
       </p>
@@ -244,8 +250,9 @@ const sections: LegalSection[] = [
     title: 'Relationship to Colleges and Universities',
     body: (
       <p>
-        Handoff is independent and is not affiliated with any college or university. We use your school email
-        address only to confirm that you are a current student. We do not receive education records from any school,
+        Handoff is independent and is not affiliated with any college or university. Verifying a school email is
+        optional; if you do, we use it only to show the Verified student badge and offer student pricing. We do not
+        receive education records from any school,
         and we do not share your information with your school except as described in Section 4.
       </p>
     ),

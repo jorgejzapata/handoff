@@ -3,18 +3,17 @@ import type { ReactNode } from 'react'
 import { onIdTokenChanged } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { auth } from '../lib/firebase'
-import { isVerifiedStudent } from '../lib/auth'
+import { isMember, isVerifiedStudent } from '../lib/auth'
 import { fetchProfile, markVerified } from '../lib/users'
 
-// What the student was doing when the sign-up sheet opened, so Verify can
-// put them right back there. Kept in localStorage so it survives the trip to
-// Outlook and back, even in a new tab.
+// What they were doing when the sign-up sheet opened, so signing up or
+// logging in puts them right back there (sends the message, publishes, saves).
 export interface PendingAction {
   reason: 'say-hi' | 'save' | 'publish' | 'messages' | 'login'
   returnTo: string
   listerName?: string
   listingId?: string // publish: the draft to put live; say-hi: the listing
-  message?: string // say-hi: the first message, sent once verified
+  message?: string // say-hi: the first message, sent right after signup
 }
 
 const PENDING_KEY = 'handoff:pending-action'
@@ -50,7 +49,10 @@ interface AuthState {
   // Any account, anonymous included. Drafts and photo uploads use this.
   rawUser: User | null
   loading: boolean
-  verified: boolean
+  // A real account. That's all it takes to message, save and post.
+  member: boolean
+  // Confirmed a school (.edu) email: the badge and student perks. Optional.
+  studentVerified: boolean
   refresh: () => Promise<boolean>
   // Profile photo for the nav bar and Me. Profile setup calls setPhotoUrl after
   // an upload so it shows right away.
@@ -62,7 +64,8 @@ const AuthContext = createContext<AuthState>({
   user: null,
   rawUser: null,
   loading: true,
-  verified: false,
+  member: false,
+  studentVerified: false,
   refresh: async () => false,
   setPhotoUrl: () => {},
 })
@@ -75,12 +78,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [photoUrl, setPhotoUrl] = useState<string | undefined>()
   const uid = user && !user.isAnonymous ? user.uid : null
 
+  // Stamp the moment a school email is confirmed (student perks key off it).
   const verifiedNow = isVerifiedStudent(user)
   useEffect(() => {
-    // Give the Verify screen a moment to record why they signed up first.
     if (!uid || !verifiedNow) return
-    const t = setTimeout(() => void markVerified(uid, readPending()?.reason), 4000)
-    return () => clearTimeout(t)
+    void markVerified(uid)
   }, [uid, verifiedNow])
 
   // The auth profile usually has the photo; fall back to the users doc.
@@ -122,7 +124,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: user && !user.isAnonymous ? user : null,
         rawUser: user,
         loading,
-        verified: isVerifiedStudent(user),
+        member: isMember(user),
+        studentVerified: isVerifiedStudent(user),
         refresh,
         photoUrl,
         setPhotoUrl,

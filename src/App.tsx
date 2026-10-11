@@ -68,29 +68,23 @@ function NoBottomNav() {
   )
 }
 
-// Messages and listing management need a verified student account.
-function RequireVerified({ children }: { children: React.ReactNode }) {
-  const { loading, user, verified } = useAuth()
+// Saved, messages and listing management need a real account.
+function RequireMember({ children }: { children: React.ReactNode }) {
+  const { loading, member } = useAuth()
   const { open } = useSignUp()
   if (loading) return null
-  if (verified) return <>{children}</>
+  if (member) return <>{children}</>
   return (
     <div className="page empty">
-      <p className="heading">{user ? 'Verify your school email to keep going.' : 'Sign up or log in to keep going.'}</p>
-      {user ? (
-        <Link to="/verify" className="btn btn-primary">
-          Verify my email
-        </Link>
-      ) : (
-        <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'messages' })}>
-          Sign up
-        </button>
-      )}
+      <p className="heading">Sign up or log in to keep going.</p>
+      <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'messages' })}>
+        Sign up
+      </button>
     </div>
   )
 }
 
-// Signed in with a real account (verified or not).
+// Signed in with a real account.
 function RequireUser({ children }: { children: React.ReactNode }) {
   const { loading, user } = useAuth()
   const { open } = useSignUp()
@@ -132,26 +126,26 @@ export default function App() {
           <Route
             path="saved"
             element={
-              <RequireVerified>
+              <RequireMember>
                 <Saved />
-              </RequireVerified>
+              </RequireMember>
             }
           />
           <Route
             path="messages"
             element={
-              <RequireVerified>
+              <RequireMember>
                 <Messages />
-              </RequireVerified>
+              </RequireMember>
             }
           />
           <Route path="me" element={<Me />} />
           <Route
             path="me/listings"
             element={
-              <RequireVerified>
+              <RequireMember>
                 <MyListings />
-              </RequireVerified>
+              </RequireMember>
             }
           />
           <Route
@@ -174,9 +168,9 @@ export default function App() {
           <Route
             path="messages/:id"
             element={
-              <RequireVerified>
+              <RequireMember>
                 <Messages />
-              </RequireVerified>
+              </RequireMember>
             }
           />
         </Route>
@@ -192,9 +186,9 @@ export default function App() {
         <Route
           path="me/listings/:id/edit"
           element={
-            <RequireVerified>
+            <RequireMember>
               <EditListing />
-            </RequireVerified>
+            </RequireMember>
           }
         />
       </Routes>

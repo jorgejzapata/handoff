@@ -48,6 +48,23 @@ describe('users/{uid}', () => {
     await assertSucceeds(setDoc(doc(db, 'users/maya'), newUser()))
   })
 
+  test('signup can include birth year (18+), gender and why they signed up', async () => {
+    const db = env.authenticatedContext('maya', maya).firestore()
+    const year = new Date().getFullYear()
+    await assertFails(setDoc(doc(db, 'users/maya'), newUser({ birthYear: year - 17 })))
+    await assertFails(setDoc(doc(db, 'users/maya'), newUser({ birthYear: '2000' })))
+    await assertFails(setDoc(doc(db, 'users/maya'), newUser({ birthYear: 2000, gender: 'robot' })))
+    await assertFails(setDoc(doc(db, 'users/maya'), newUser({ birthYear: 2000, signupReason: 'hacking' })))
+    await assertSucceeds(
+      setDoc(doc(db, 'users/maya'), newUser({ birthYear: year - 18, gender: 'self', genderSelfDescribe: 'Genderfluid', signupReason: 'say-hi' })),
+    )
+  })
+
+  test('any email can sign up, not just .edu', async () => {
+    const db = env.authenticatedContext('maya', { email: 'maya@gmail.com' }).firestore()
+    await assertSucceeds(setDoc(doc(db, 'users/maya'), newUser({ email: 'maya@gmail.com', birthYear: 2001 })))
+  })
+
   test("can't create someone else's doc", async () => {
     const db = env.authenticatedContext('jake', { email: 'jake@colostate.edu' }).firestore()
     await assertFails(setDoc(doc(db, 'users/maya'), newUser({ email: 'jake@colostate.edu' })))
@@ -115,9 +132,19 @@ describe('users/{uid}', () => {
       await assertFails(updateDoc(ref, { genderSelfDescribe: 'x'.repeat(31) }))
     })
 
-    test('verifiedAt is set once, only by a verified student, at server time', async () => {
+    test('birth year can be added once, if missing, and must be 18+', async () => {
+      const db = env.authenticatedContext('maya', maya).firestore()
+      const ref = doc(db, 'users/maya')
+      await assertFails(updateDoc(ref, { birthYear: new Date().getFullYear() - 10 }))
+      await assertSucceeds(updateDoc(ref, { birthYear: 2003 }))
+      await assertFails(updateDoc(ref, { birthYear: 2002 }))
+    })
+
+    test('verifiedAt is set once, only with a confirmed school email, at server time', async () => {
       const unverified = env.authenticatedContext('maya', maya).firestore()
       await assertFails(updateDoc(doc(unverified, 'users/maya'), { verifiedAt: serverTimestamp() }))
+      const gmail = env.authenticatedContext('maya', { email: 'maya@gmail.com', email_verified: true }).firestore()
+      await assertFails(updateDoc(doc(gmail, 'users/maya'), { verifiedAt: serverTimestamp() }))
       const verified = env.authenticatedContext('maya', { ...maya, email_verified: true }).firestore()
       const ref = doc(verified, 'users/maya')
       await assertFails(updateDoc(ref, { verifiedAt: Timestamp.fromMillis(0) }))
@@ -267,29 +294,32 @@ describe('listings: drafts', () => {
 describe('listings: publishing', () => {
   beforeEach(() => seedListing('l1', { ...newDraft('maya', complete), createdAt: Timestamp.now(), updatedAt: Timestamp.now() }))
 
-  test('a verified student can publish a complete draft', async () => {
-    const db = env.authenticatedContext('maya', verifiedMaya).firestore()
-    await assertSucceeds(updateDoc(doc(db, 'listings/l1'), publishPatch()))
+  test('any signed-up member can publish a complete draft, verified or not, any email', async () => {
+    await assertSucceeds(updateDoc(doc(env.authenticatedContext('maya', verifiedMaya).firestore(), 'listings/l1'), publishPatch()))
+    await seedListing('l4', { ...newDraft('maya', complete), createdAt: Timestamp.now(), updatedAt: Timestamp.now() })
+    await assertSucceeds(updateDoc(doc(env.authenticatedContext('maya', unverifiedMaya).firestore(), 'listings/l4'), publishPatch()))
+    await seedListing('l5', { ...newDraft('maya', complete), createdAt: Timestamp.now(), updatedAt: Timestamp.now() })
+    const gmail = env.authenticatedContext('maya', { email: 'maya@gmail.com', email_verified: false }).firestore()
+    await assertSucceeds(updateDoc(doc(gmail, 'listings/l5'), publishPatch()))
   })
 
-  test('unverified and anonymous accounts cannot publish', async () => {
-    await assertFails(
-      updateDoc(doc(env.authenticatedContext('maya', unverifiedMaya).firestore(), 'listings/l1'), publishPatch()),
-    )
+  test('anonymous (draft-only) accounts cannot publish', async () => {
     await assertFails(updateDoc(doc(env.authenticatedContext('maya', anon).firestore(), 'listings/l1'), publishPatch()))
   })
 
-  test('a verified non-school email cannot publish', async () => {
-    const db = env.authenticatedContext('maya', verifiedGmail).firestore()
-    await assertFails(updateDoc(doc(db, 'listings/l1'), publishPatch()))
+  test('the Verified student badge needs a confirmed .edu email; look-alikes do not count', async () => {
+    const as = (email, email_verified = true) => env.authenticatedContext('maya', { email, email_verified }).firestore()
+    const badge = () => ({ ...publishPatch(), listerVerified: true })
+    await assertFails(updateDoc(doc(as('maya.r@colostate.edu', false), 'listings/l1'), badge()))
+    await assertFails(updateDoc(doc(as('maya@gmail.com'), 'listings/l1'), badge()))
+    await assertFails(updateDoc(doc(as('maya@school.edu.evil.com'), 'listings/l1'), badge()))
+    await assertFails(updateDoc(doc(as('maya@edu'), 'listings/l1'), badge()))
+    await assertSucceeds(updateDoc(doc(as('Maya@Mail.DU.edu'), 'listings/l1'), badge()))
   })
 
-  test('any school (.edu) email works; look-alike domains do not', async () => {
-    const as = (email) => env.authenticatedContext('maya', { email, email_verified: true }).firestore()
-    await assertFails(updateDoc(doc(as('maya@school.edu.evil.com'), 'listings/l1'), publishPatch()))
-    await assertFails(updateDoc(doc(as('maya@edu'), 'listings/l1'), publishPatch()))
-    await assertFails(updateDoc(doc(as('maya@notanedu'), 'listings/l1'), publishPatch()))
-    await assertSucceeds(updateDoc(doc(as('Maya@Mail.DU.edu'), 'listings/l1'), publishPatch()))
+  test('anyone can say no badge', async () => {
+    const db = env.authenticatedContext('maya', unverifiedMaya).firestore()
+    await assertSucceeds(updateDoc(doc(db, 'listings/l1'), { ...publishPatch(), listerVerified: false }))
   })
 
   test('an incomplete draft cannot go live', async () => {
@@ -396,8 +426,9 @@ describe('saved places', () => {
     await assertSucceeds(b.commit())
   })
 
-  test("unverified students can't save, and nobody saves a place that isn't live", async () => {
-    await assertFails(save(env.authenticatedContext('jake', { ...jake, email_verified: false }).firestore()))
+  test("anonymous accounts can't save, and nobody saves a place that isn't live", async () => {
+    await assertSucceeds(save(env.authenticatedContext('jake', { ...jake, email_verified: false }).firestore()))
+    await assertFails(save(env.authenticatedContext('jake', anon).firestore()))
     await assertFails(save(env.authenticatedContext('jake', jake).firestore(), 'gone'))
   })
 
@@ -538,8 +569,12 @@ describe('conversations: starting a thread', () => {
     await assertSucceeds(startAs(jakeVerified, 'jake'))
   })
 
-  test('unverified students cannot say hi', async () => {
-    await assertFails(startAs(jakeUnverified, 'jake'))
+  test('unverified members can say hi', async () => {
+    await assertSucceeds(startAs(jakeUnverified, 'jake'))
+  })
+
+  test('anonymous accounts cannot say hi', async () => {
+    await assertFails(startAs(anon, 'jake'))
   })
 
   test("the thread id must be listing_seeker, so there's one thread per seeker", async () => {
@@ -775,9 +810,9 @@ describe('reports', () => {
     await assertSucceeds(addDoc(collection(db, 'reports'), report()))
   })
 
-  test("can't report as someone else, unverified, or pre-resolved", async () => {
+  test("can't report as someone else, anonymously, or pre-resolved", async () => {
     await assertFails(addDoc(collection(env.authenticatedContext('jake', jakeVerified).firestore(), 'reports'), report({ reporterId: 'maya' })))
-    await assertFails(addDoc(collection(env.authenticatedContext('jake', jakeUnverified).firestore(), 'reports'), report()))
+    await assertFails(addDoc(collection(env.authenticatedContext('jake', anon).firestore(), 'reports'), report()))
     await assertFails(addDoc(collection(env.authenticatedContext('jake', jakeVerified).firestore(), 'reports'), report({ status: 'dismissed' })))
   })
 

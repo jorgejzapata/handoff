@@ -43,6 +43,7 @@ export interface Lister {
   photoUrl?: string
   year?: string
   since: string // e.g. "Oct 2026"
+  verified?: boolean // confirmed a school email: shows the "Verified student" badge
 }
 
 export interface Listing {
@@ -245,6 +246,7 @@ export function snapshotToListing(snap: DocumentSnapshot): Listing | null {
       photoUrl: d.listerPhotoUrl || undefined,
       year: d.listerYear || undefined,
       since: d.listerSince ?? '',
+      verified: d.listerVerified === true,
     },
     postedAt: d.publishedAt instanceof Timestamp ? d.publishedAt.toDate().toISOString() : '',
     updatedAt: d.updatedAt instanceof Timestamp ? d.updatedAt.toDate().toISOString() : '',
@@ -375,7 +377,7 @@ export async function deleteDraft(id: string) {
   await deleteDoc(doc(db, 'listings', id))
 }
 
-// Goes live. The rules require a verified school email and every required field.
+// Goes live. The rules require a real (not anonymous) account and every required field.
 export async function publishListing(id: string, draft: ListingDraft, lister: Lister) {
   if (!draft.availableTo) throw new Error('Missing move-out date')
   await updateDoc(doc(db, 'listings', id), {
@@ -387,6 +389,7 @@ export async function publishListing(id: string, draft: ListingDraft, lister: Li
     listerPhotoUrl: lister.photoUrl ?? null,
     listerYear: lister.year ?? null,
     listerSince: lister.since,
+    listerVerified: lister.verified === true,
   })
 }
 
@@ -397,6 +400,7 @@ export async function updateListerOnListings(uid: string, lister: Partial<Lister
   if (lister.firstName !== undefined) patch.listerFirstName = lister.firstName
   if (lister.photoUrl !== undefined) patch.listerPhotoUrl = lister.photoUrl
   if (lister.year !== undefined) patch.listerYear = lister.year
+  if (lister.verified !== undefined) patch.listerVerified = lister.verified
   await Promise.all(
     snap.docs
       .filter((d) => ['draft', 'active'].includes(d.data().status))

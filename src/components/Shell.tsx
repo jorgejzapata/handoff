@@ -71,7 +71,7 @@ export function TopBar() {
 
 const ICON = { size: 22, strokeWidth: 1.5 } as const
 
-// Signed out (or not verified yet), Saved, Messages and Me open the sign-up sheet.
+// Signed out, Saved, Messages and Me open the sign-up sheet.
 function NavTab({
   to,
   icon,
@@ -115,13 +115,13 @@ function NavTab({
 }
 
 export function BottomNav() {
-  const { user, verified, photoUrl } = useAuth()
+  const { user, member, photoUrl } = useAuth()
   const { unreadTotal } = useInbox()
   const { open } = useSignUp()
   return (
     <nav className="bottom-nav" aria-label="Main">
       <NavTab to="/listings" icon={<Search {...ICON} />} label="Browse" />
-      <NavTab to="/saved" icon={<Heart {...ICON} />} label="Saved" gate={verified ? undefined : () => open({ reason: 'save' })} />
+      <NavTab to="/saved" icon={<Heart {...ICON} />} label="Saved" gate={member ? undefined : () => open({ reason: 'save' })} />
       <Link to="/post" className="nav-post" aria-label="Post your place">
         <Plus size={24} strokeWidth={2} />
       </Link>
@@ -130,7 +130,7 @@ export function BottomNav() {
         icon={<MessageCircle {...ICON} />}
         label="Messages"
         badge={unreadTotal}
-        gate={verified ? undefined : () => open({ reason: 'messages' })}
+        gate={member ? undefined : () => open({ reason: 'messages' })}
       />
       <NavTab
         to="/me"

@@ -26,11 +26,11 @@ const SavedContext = createContext<SavedState>({
 export const useSaved = () => useContext(SavedContext)
 
 export function SavedProvider({ children }: { children: ReactNode }) {
-  const { user, verified } = useAuth()
+  const { user, member } = useAuth()
   const toast = useToast()
   const [saved, setSaved] = useState<SavedEntry[] | null>(null)
   const [error, setError] = useState(false)
-  const uid = verified ? user?.uid : undefined
+  const uid = member ? user?.uid : undefined
 
   useEffect(() => {
     setSaved(null)

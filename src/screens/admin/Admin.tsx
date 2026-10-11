@@ -7,6 +7,7 @@ import { Sheet } from '../../components/Sheet'
 import {
   GOALS,
   checkIsAdmin,
+  computeDemographics,
   computeMetrics,
   dismissReports,
   fetchAdminData,
@@ -244,6 +245,7 @@ function Admin() {
 
 export function Overview({ data, views7d, onOpenReports }: { data: Data; views7d: number | null; onOpenReports: () => void }) {
   const m = computeMetrics(data.listings, data.users, data.reports)
+  const who = computeDemographics(data.users)
   const boostsOn = m.activeListings >= GOALS.boostGate
   const delta = (now: number, before: number) => (now === before ? 'Same as last week' : `${now > before ? '+' : ''}${now - before} vs last week`)
 
@@ -269,7 +271,8 @@ export function Overview({ data, views7d, onOpenReports }: { data: Data; views7d
         <Tile label="Boost conversion" value="–" goal={`Goal: ${GOALS.boostConversionPct}%+ of listings`} sub={boostsOn ? 'Boosts not built yet' : `Boosts locked until ${GOALS.boostGate} live`} />
         <Tile label="Revenue per listing" value="$0" goal="Goal: rising month over month" sub="Starts with boosts" />
         <Tile label="Reports this week" value={String(m.reportsThisWeek)} goal="Spikes flag a trust problem" sub={`${m.openReports} open · ${delta(m.reportsThisWeek, m.reportsLastWeek)}`} warn={m.reportsThisWeek > Math.max(3, m.reportsLastWeek * 2)} onClick={m.openReports ? onOpenReports : undefined} />
-        <Tile label="Students" value={String(m.students)} goal="Signed up" sub={`${m.newStudentsThisWeek} new this week`} />
+        <Tile label="Members" value={String(m.students)} goal="Signed up" sub={`${m.newStudentsThisWeek} new this week`} />
+        <Tile label="Verified students" value={String(who.verifiedStudents)} goal="Confirmed a .edu email" sub={who.total ? `${Math.round((who.verifiedStudents / who.total) * 100)}% of members` : 'No members yet'} />
         <Tile label="Listing views" value={views7d === null ? '–' : String(views7d)} goal="Last 7 days" sub={`${m.drafts} drafts in progress`} />
       </div>
 
@@ -286,10 +289,32 @@ export function Overview({ data, views7d, onOpenReports }: { data: Data; views7d
       </div>
 
       <div className="charts-grid">
+        <Breakdown title="Members by age" rows={who.ages} total={who.total} />
+        <Breakdown title="Members by gender" rows={who.genders} total={who.total} />
         <BarChart title="New listings" unit="listing" data={m.newListingsByDay} />
         <BarChart title="Listings filled" unit="fill" data={m.fillsByDay} />
       </div>
     </div>
+  )
+}
+
+// A simple share-of-members list: label, bar, count.
+function Breakdown({ title, rows, total }: { title: string; rows: { label: string; count: number }[]; total: number }) {
+  return (
+    <figure className="chart breakdown">
+      <figcaption className="label">{title}</figcaption>
+      <ul className="breakdown-list">
+        {rows.map((r) => (
+          <li key={r.label}>
+            <span className="caption">{r.label}</span>
+            <div className="progress" role="img" aria-label={`${r.label}: ${r.count} of ${total}`}>
+              <div className="progress-fill" style={{ width: `${total ? (r.count / total) * 100 : 0}%` }} />
+            </div>
+            <span className="caption muted">{r.count}</span>
+          </li>
+        ))}
+      </ul>
+    </figure>
   )
 }
 

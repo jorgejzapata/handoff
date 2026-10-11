@@ -17,9 +17,10 @@ import { auth, db, functions, usingEmulators } from './firebase'
 import { MARKET_ID } from '../config'
 import { captureAnonDraft, restoreDraft } from './draftCarry'
 
-// Who can join: students with a school email. Any address whose domain ends
-// in one of these counts (so name@school.edu and name@mail.school.edu both
-// work). Keep this in sync with isStudentEmail() in firestore.rules.
+// Anyone 18+ can join with any email. A school email (any domain ending in
+// one of these, so name@school.edu and name@mail.school.edu both count) can
+// optionally be verified for the "Verified student" badge and, later, student
+// pricing on boosts. Keep in sync with isStudentVerified() in firestore.rules.
 export const STUDENT_EMAIL_SUFFIXES = ['.edu']
 
 export function isStudentEmail(email: string | null | undefined) {
@@ -28,8 +29,26 @@ export function isStudentEmail(email: string | null | undefined) {
   return /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain) && STUDENT_EMAIL_SUFFIXES.some((s) => domain.endsWith(s))
 }
 
+// A confirmed school email: earns the badge and student perks. Not needed to
+// use Handoff.
 export function isVerifiedStudent(user: User | null) {
   return !!user && user.emailVerified && isStudentEmail(user.email)
+}
+
+// A real account (anonymous draft accounts don't count). This is all it
+// takes to message, save and post.
+export function isMember(user: User | null) {
+  return !!user && !user.isAnonymous
+}
+
+// Handoff is 18+. Birth year only, so someone turning 18 this year counts.
+export const MIN_AGE = 18
+export function birthYearOptions(now = new Date()) {
+  const newest = now.getFullYear() - MIN_AGE
+  return Array.from({ length: 83 }, (_, i) => newest - i)
+}
+export function isAdultBirthYear(year: number, now = new Date()) {
+  return Number.isInteger(year) && year <= now.getFullYear() - MIN_AGE && year >= now.getFullYear() - 100
 }
 
 // Where the verification link sends people after Firebase confirms the email.
@@ -54,7 +73,18 @@ export async function sendVerification(user: User) {
   }
 }
 
-async function ensureUserDoc(user: User, firstName: string) {
+export type SignupReason = 'say-hi' | 'save' | 'publish' | 'messages' | 'login'
+export type GenderAnswer = 'woman' | 'man' | 'nonbinary' | 'self'
+
+export interface SignupDetails {
+  birthYear: number
+  gender?: GenderAnswer
+  genderSelfDescribe?: string
+  reason?: SignupReason
+}
+
+// Creating this doc also sends the welcome email (onUserCreated function).
+async function ensureUserDoc(user: User, firstName: string, details?: SignupDetails) {
   const ref = doc(db, 'users', user.uid)
   const existing = await getDoc(ref)
   if (existing.exists()) return
@@ -65,6 +95,12 @@ async function ensureUserDoc(user: User, firstName: string) {
     onboardingStep: 'profile',
     createdAt: serverTimestamp(),
     lastActiveAt: serverTimestamp(),
+    ...(details?.birthYear ? { birthYear: details.birthYear } : {}),
+    ...(details?.gender ? { gender: details.gender } : {}),
+    ...(details?.gender === 'self' && details.genderSelfDescribe?.trim()
+      ? { genderSelfDescribe: details.genderSelfDescribe.trim() }
+      : {}),
+    ...(details?.reason ? { signupReason: details.reason } : {}),
   })
 }
 
@@ -76,18 +112,17 @@ export async function ensureAnonymous() {
   return user
 }
 
-export async function signUpWithEmail(firstName: string, email: string, password: string) {
+export async function signUpWithEmail(firstName: string, email: string, password: string, details: SignupDetails) {
   const cleanEmail = email.trim().toLowerCase()
-  if (!isStudentEmail(cleanEmail)) throw new AuthMessage('not-student')
+  if (!isAdultBirthYear(details.birthYear)) throw new AuthMessage('under-18')
   const current = auth.currentUser
   const { user } = current?.isAnonymous
     ? await linkWithCredential(current, EmailAuthProvider.credential(cleanEmail, password))
     : await createUserWithEmailAndPassword(auth, cleanEmail, password)
   await updateProfile(user, { displayName: firstName.trim() })
-  await user.getIdToken(true) // so rules see the new email
-  await sendVerification(user)
+  await user.getIdToken(true) // so rules see the real account, not the anonymous one
   // The profile doc is retried on next sign-in if this fails, so it never blocks signup.
-  await ensureUserDoc(user, firstName.trim()).catch((e) => console.error('[handoff] users doc', e))
+  await ensureUserDoc(user, firstName.trim(), details).catch((e) => console.error('[handoff] users doc', e))
   return user
 }
 
@@ -111,7 +146,7 @@ export function logOut() {
 
 // ---- Errors, in Handoff's voice ----
 
-type MessageCode = 'not-student'
+type MessageCode = 'under-18'
 
 export class AuthMessage extends Error {
   constructor(public code: MessageCode) {
@@ -121,13 +156,13 @@ export class AuthMessage extends Error {
 
 export interface FriendlyError {
   message: string
-  field?: 'email' | 'password' | 'name'
+  field?: 'email' | 'password' | 'name' | 'birthYear'
   action?: 'login'
 }
 
 export function friendlyError(err: unknown): FriendlyError | null {
   if (err instanceof AuthMessage) {
-    return { message: 'Handoff is for students right now. Use your school email (it ends in .edu).', field: 'email' }
+    return { message: `You need to be ${MIN_AGE} or older to use Handoff.`, field: 'birthYear' }
   }
   if (err instanceof FirebaseError) {
     switch (err.code) {
