@@ -1,7 +1,9 @@
 import { fetchSaveCount } from '../lib/saved'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { EllipsisVertical, House } from 'lucide-react'
+import { EllipsisVertical, House, Zap } from 'lucide-react'
+import { useActiveListings } from '../lib/useListings'
+import { BOOST_GATE } from '../lib/boosts'
 import { useAuth } from '../components/AuthProvider'
 import { useInbox } from '../components/InboxProvider'
 import { useToast } from '../components/Toast'
@@ -40,6 +42,9 @@ export default function MyListings() {
   const [menu, setMenu] = useState<string | null>(null)
   const [filling, setFilling] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<Listing | null>(null)
+  // Boosts stay invisible until Handoff has enough live listings to make them worth it.
+  const { listings: live } = useActiveListings()
+  const boostsOn = (live?.length ?? 0) >= BOOST_GATE
 
   const load = useCallback(() => {
     if (!user) return
@@ -120,6 +125,9 @@ export default function MyListings() {
     ['past', 'Past'],
   ]
   const shown = groups[tab]
+  const boostEnded = (groups.live ?? []).filter(
+    (l) => !l.boosted && l.boostEndedAt && Date.now() - new Date(l.boostEndedAt).getTime() < 7 * 24 * 60 * 60 * 1000,
+  )
 
   return (
     <div className="page my-listings" onClick={() => menu && setMenu(null)}>
@@ -151,6 +159,20 @@ export default function MyListings() {
           </div>
         )
       })}
+
+      {boostsOn &&
+        boostEnded.map((l) => (
+          <div key={`boost-${l.id}`} className="notice attention">
+            <div>
+              <p className="notice-title">Your boost on "{l.title}" ended.</p>
+              <div className="row-8 attention-actions">
+                <Link to={`/me/listings/${l.id}/boost`} className="btn btn-primary btn-sm">
+                  Boost again
+                </Link>
+              </div>
+            </div>
+          </div>
+        ))}
 
       <div className="tabs" role="tablist" aria-label="Listing status">
         {tabs.map(([value, label]) => (
@@ -227,6 +249,12 @@ export default function MyListings() {
                       <SavesCount listingId={l.id} />
                       {l.expiresAt && ` · Expires ${formatShortDate(l.expiresAt)}`}
                     </p>
+                    {l.boostedUntil && (
+                      <p className="caption manage-boost">
+                        <span className="lime-dot" aria-hidden="true" />
+                        Boosted until {formatShortDate(l.boostedUntil)}
+                      </p>
+                    )}
                   </>
                 )}
 
@@ -245,6 +273,12 @@ export default function MyListings() {
                       <Link to={`/me/listings/${l.id}/edit`} className="btn btn-secondary btn-sm">
                         Edit
                       </Link>
+                      {boostsOn && (
+                        <Link to={`/me/listings/${l.id}/boost`} className="btn btn-secondary btn-sm manage-boost">
+                          <Zap size={14} strokeWidth={1.5} aria-hidden="true" />
+                          {l.boosted ? 'Extend boost' : 'Boost'}
+                        </Link>
+                      )}
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => setFilling(l.id)}>
                         Mark as filled
                       </button>

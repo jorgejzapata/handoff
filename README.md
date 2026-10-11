@@ -30,3 +30,23 @@ Firestore and Storage rules are deployed separately, on purpose:
 
 - `handoff-dev-e63cc`: development (current)
 - `handoff-prod`: not created yet
+
+## Boosts (Stripe)
+
+Boosts switch on at 15 live listings (`BOOST_GATE` in `functions/src/boosts.ts`
+and `src/lib/boosts.ts`). 7 days $5, 30 days $15; verified .edu members get 20% off,
+checked server-side from the auth token.
+
+One-time setup per project (test keys on dev, live keys on prod):
+
+```
+firebase functions:secrets:set STRIPE_SECRET_KEY -P dev       # sk_test_...
+firebase functions:secrets:set STRIPE_WEBHOOK_SECRET -P dev   # whsec_..., from the endpoint below
+```
+
+In Stripe → Developers → Webhooks, add an endpoint:
+`https://us-central1-<project-id>.cloudfunctions.net/stripeWebhook`, listening for
+`checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+`checkout.session.async_payment_failed` and `checkout.session.expired`.
+
+Then `npm run deploy:rules` (boostOrders rules) and `npm run deploy`.

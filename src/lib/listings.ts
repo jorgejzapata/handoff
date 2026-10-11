@@ -77,6 +77,8 @@ export interface Listing {
   photos: Photo[]
   landlordStatus: LandlordStatus
   boosted: boolean
+  boostedUntil?: string // ISO, while a boost is running
+  boostEndedAt?: string // ISO, set when a boost runs out (My listings banner)
   lister: Lister
   postedAt: string
   updatedAt: string
@@ -242,6 +244,8 @@ export function snapshotToListing(snap: DocumentSnapshot): Listing | null {
     photos: d.photos ?? [],
     landlordStatus: d.landlordStatus ?? 'notSure',
     boosted: !!boostedUntil && boostedUntil > new Date(),
+    boostedUntil: boostedUntil && boostedUntil > new Date() ? boostedUntil.toISOString() : undefined,
+    boostEndedAt: d.boostEndedAt instanceof Timestamp ? d.boostEndedAt.toDate().toISOString() : undefined,
     lister: {
       firstName: d.listerFirstName ?? 'A student',
       photoUrl: d.listerPhotoUrl || undefined,

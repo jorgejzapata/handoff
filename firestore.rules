@@ -543,6 +543,18 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Boost purchases. Written only by Cloud Functions (createBoostCheckout and
+    // the Stripe webhook); the buyer can read their own to see it confirm.
+    match /boostOrders/{orderId} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    // Stripe event IDs the webhook already handled. Server only.
+    match /stripeEvents/{eventId} {
+      allow read, write: if false;
+    }
+
     // Every admin action, with who, when and why. Append-only.
     match /adminActions/{actionId} {
       allow read: if isAdmin();

@@ -28,6 +28,7 @@ import PostLive from './screens/post/PostLive'
 import ProfileSetup from './screens/ProfileSetup'
 import Verify, { ConfirmEmail, Verified } from './screens/Verify'
 import Me from './screens/Me'
+import Boost, { BoostResult } from './screens/Boost'
 import { usingEmulators } from './lib/firebase'
 import { trackScreen } from './lib/track'
 
@@ -194,8 +195,18 @@ export default function App() {
           <Route path="post/live/:id" element={<PostLive />} />
           <Route path="onboarding" element={<ProfileSetup />} />
           <Route path="admin" element={<AdminGate />} />
+          <Route path="boost/success" element={<BoostResult />} />
+          <Route path="boost/cancel" element={<BoostResult cancelled />} />
         </Route>
         <Route path="post" element={<PostListing />} />
+        <Route
+          path="me/listings/:id/boost"
+          element={
+            <RequireMember>
+              <Boost />
+            </RequireMember>
+          }
+        />
         <Route
           path="me/listings/:id/edit"
           element={
