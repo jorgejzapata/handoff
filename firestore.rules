@@ -188,6 +188,19 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys();
     }
 
+    // Can the app publish this itself, for free? Yes unless the $1 fee is on
+    // (config/pricing.listingFee == 'stripe') and the first 50 free spots are
+    // gone; then only the Stripe webhook publishes. Keep 50 in sync with
+    // FREE_LISTINGS in functions/src/stats.ts.
+    function freePublishAllowed() {
+      let cfg = /databases/$(database)/documents/config/pricing;
+      let st = /databases/$(database)/documents/stats/listings;
+      return !exists(cfg)
+        || get(cfg).data.get('listingFee', 'off') != 'stripe'
+        || !exists(st)
+        || get(st).data.get('published', 0) < 50;
+    }
+
     match /listings/{listingId} {
       allow get, list: if resource.data.status == 'active'
         || (signedIn() && resource.data.ownerId == request.auth.uid)
@@ -225,6 +238,7 @@ service cloud.firestore {
           // Publishing
           || (resource.data.status == 'draft' && request.resource.data.status == 'active'
             && isMember()
+            && freePublishAllowed()
             && publishable(request.resource.data)
             && request.resource.data.publishedAt == request.time
             && validExpiry(request.resource.data)
@@ -556,6 +570,20 @@ service cloud.firestore {
     match /stats/{statId} {
       allow get: if statId == 'listings';
       allow list, write: if false;
+    }
+
+    // Pricing switches, set in the Firebase console:
+    //   listingFee: 'off' | 'test' | 'stripe'
+    match /config/{configId} {
+      allow get: if configId == 'pricing';
+      allow list, write: if false;
+    }
+
+    // $1 listing-fee payments. Written only by Cloud Functions; the lister
+    // reads their own to watch it confirm.
+    match /listingOrders/{orderId} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow write: if false;
     }
 
     // Internal accounts (Jorge and test accounts): their listings never
