@@ -662,6 +662,25 @@ export function StepLocation({
         </div>
       )}
 
+      {/* The map is always here, right under the address: campus until an
+          address is picked, then it moves to the general-area circle seekers
+          will see. */}
+      <div className="post-map">
+        <LazyMap
+          className="map-detail"
+          label={chosen ? 'The general area seekers will see' : 'Map of the area around campus'}
+          circle={
+            chosen && draft.approxLat !== undefined && draft.approxLng !== undefined
+              ? { lat: draft.approxLat, lng: draft.approxLng, radiusM: AREA_RADIUS_M }
+              : undefined
+          }
+          zoom={chosen ? 13.5 : 12.5}
+        />
+        <p className="caption muted post-map-note">
+          {chosen ? 'Seekers see this circle, not your address.' : 'Pick your address and the map shows the area seekers will see.'}
+        </p>
+      </div>
+
       {chosen && (
         <>
           <Field label="Unit (optional)" htmlFor="unit">
@@ -685,14 +704,6 @@ export function StepLocation({
               onChange={(e) => update({ neighborhood: e.target.value })}
             />
           </Field>
-          {draft.approxLat !== undefined && draft.approxLng !== undefined && (
-            <LazyMap
-              className="map-detail"
-              label="The general area seekers will see"
-              circle={{ lat: draft.approxLat, lng: draft.approxLng, radiusM: AREA_RADIUS_M }}
-              zoom={14}
-            />
-          )}
         </>
       )}
 

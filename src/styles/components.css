@@ -1137,3 +1137,5 @@ button.metric-tile:hover { filter: brightness(0.97); }
 .signed-out > svg { color: var(--forest-600); }
 .signed-out-actions { display: flex; gap: var(--space-2); margin-top: 6px; }
 .signed-out-actions .btn { min-width: 120px; }
+.post-map { display: flex; flex-direction: column; gap: 6px; }
+.post-map-note { text-align: center; }

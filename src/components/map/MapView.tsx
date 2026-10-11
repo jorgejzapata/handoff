@@ -149,9 +149,16 @@ export default function MapView({
   // Keep the circle in sync (e.g. a new address in Post step 5).
   useEffect(() => {
     const m = map.current
-    if (!m || !circle) return
+    if (!m) return
+    if (!circle) {
+      if (m.getLayer('area-fill')) m.setLayoutProperty('area-fill', 'visibility', 'none')
+      if (m.getLayer('area-line')) m.setLayoutProperty('area-line', 'visibility', 'none')
+      return
+    }
+    for (const id of ['area-fill', 'area-line'])
+      if (m.getLayer(id)) m.setLayoutProperty(id, 'visibility', 'visible')
     if (m.isStyleLoaded()) addCircle(m, circle)
-    m.easeTo({ center: [circle.lng, circle.lat], duration: 400 })
+    m.easeTo({ center: [circle.lng, circle.lat], zoom: Math.max(m.getZoom(), 13.5), duration: 600 })
   }, [circle?.lat, circle?.lng, circle?.radiusM]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Price pins, as HTML markers so they're real buttons.
