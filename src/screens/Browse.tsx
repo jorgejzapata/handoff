@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useSearchParams } from 'react-router'
 import { Link } from 'react-router'
-import { Check, House, List, Map as MapIcon, SearchX } from 'lucide-react'
+import { Check, House, List, Map as MapIcon, SearchX, SlidersHorizontal } from 'lucide-react'
+import { Sheet } from '../components/Sheet'
+import { FilterPanel } from '../components/FilterPanel'
+import { EMPTY, activeCount, matches, priceLabel, readFilters, writeFilters } from '../lib/browseFilters'
+import type { Filters } from '../lib/browseFilters'
 import { LazyMap } from '../components/map/LazyMap'
 import type { MapPin } from '../components/map/MapView'
 import { formatRent } from '../lib/format'
@@ -10,8 +15,7 @@ import type { Listing } from '../lib/listings'
 import { formatDates } from '../lib/format'
 import { useActiveListings } from '../lib/useListings'
 import { saveLastSearch } from '../lib/lastSearch'
-import { GROUPS, openToGroup, useMyGroup } from '../lib/gender'
-import type { Group } from '../lib/gender'
+import { GROUPS, useMyGroup } from '../lib/gender'
 
 type Sort = 'recommended' | 'newest' | 'price-asc' | 'price-desc'
 
@@ -32,13 +36,10 @@ function overlapNote(l: Listing, from?: string, to?: string) {
 
 export default function Browse() {
   const [params, setParams] = useSearchParams()
-  const from = params.get('from') ?? undefined
-  const to = params.get('to') ?? undefined
-  const max = params.get('max') ? Number(params.get('max')) : undefined
-  const type = params.get('type') ?? 'any'
-  const furnished = params.get('furnished') === '1'
-  const forParam = params.get('for')
-  const forGroup = GROUPS.some(([g]) => g === forParam) ? (forParam as Group) : undefined
+  const filters = useMemo(() => readFilters(params), [params])
+  const { from, to, max, type, furnished } = filters
+  const forGroup = filters.type === 'whole' ? undefined : filters.for
+  const [sheetOpen, setSheetOpen] = useState(false)
   const myGroup = useMyGroup()
   const sort = (params.get('sort') as Sort) ?? 'recommended'
   const mapView = params.get('view') === 'map'
@@ -57,18 +58,16 @@ export default function Browse() {
     setParams(next, { replace: true })
   }
 
+  function apply(f: Filters) {
+    setParams(writeFilters(params, f), { replace: true })
+  }
+
+  function clearAll() {
+    setParams(writeFilters(params, EMPTY), { replace: true })
+  }
+
   const results = useMemo(() => {
-    const list = (listings ?? []).filter((l) => {
-      if (max && l.rentCents / 100 > max) return false
-      if (type === 'room' && l.listingType !== 'room') return false
-      if (type === 'whole' && l.listingType !== 'takeover') return false
-      if (furnished && !l.furnished) return false
-      if (forGroup && !openToGroup(l.openTo, forGroup)) return false
-      // Any overlap with the seeker's dates counts; partial matches get a note.
-      if (from && l.availableTo < from) return false
-      if (to && l.availableFrom > to) return false
-      return true
-    })
+    const list = (listings ?? []).filter((l) => matches(l, filters))
     const sorted = [...list]
     if (sort === 'newest') sorted.sort((a, b) => b.postedAt.localeCompare(a.postedAt))
     if (sort === 'price-asc') sorted.sort((a, b) => a.rentCents - b.rentCents)
@@ -76,10 +75,12 @@ export default function Browse() {
     if (sort === 'recommended')
       sorted.sort((a, b) => Number(b.boosted) - Number(a.boosted) || b.postedAt.localeCompare(a.postedAt))
     return sorted
-  }, [listings, from, to, max, type, furnished, forGroup, sort])
+  }, [listings, filters, sort])
 
   const typeLabel = type === 'room' ? 'Room' : type === 'whole' ? 'Whole place' : 'Type'
-  const anyFilter = from || to || max || type !== 'any' || furnished || forGroup
+  const count = activeCount(filters)
+  const anyFilter = count > 0
+  const price = priceLabel(filters)
 
   // With a gender on their profile, one tap: "Open to me". Otherwise the chip
   // cycles through the groups.
@@ -98,21 +99,35 @@ export default function Browse() {
 
   return (
     <div className="page browse">
+      <div className="browse-layout">
+      <aside className="filter-rail" aria-label="Filters">
+        <div className="filter-rail-head">
+          <p className="heading">Filters</p>
+          {anyFilter && (
+            <button type="button" className="link-btn" onClick={clearAll}>
+              Clear all
+            </button>
+          )}
+        </div>
+        <FilterPanel value={filters} onChange={apply} myGroup={myGroup} />
+      </aside>
+      <div className="browse-main">
       <div className="chip-row" role="toolbar" aria-label="Filters">
-        <Chip on={!!(from && to)} label={from && to ? formatDates(from, to) : 'Dates'} />
         <Chip
-          on={!!max}
-          label={max ? `Up to $${max.toLocaleString('en-US')}` : 'Price'}
-          onClick={max ? () => update('max', null) : undefined}
+          on={count > 0}
+          label={count > 0 ? `Filters · ${count}` : 'Filters'}
+          icon={<SlidersHorizontal size={14} strokeWidth={1.5} aria-hidden="true" />}
+          onClick={() => setSheetOpen(true)}
         />
+        <Chip on={!!(from && to)} label={from && to ? formatDates(from, to) : 'Dates'} onClick={() => setSheetOpen(true)} />
+        <Chip on={!!price} label={price ?? 'Price'} onClick={() => setSheetOpen(true)} />
         <Chip
           on={type !== 'any'}
           label={typeLabel}
           onClick={() => update('type', type === 'any' ? 'room' : type === 'room' ? 'whole' : null)}
         />
         <Chip on={furnished} label="Furnished" onClick={() => update('furnished', furnished ? null : '1')} />
-        <Chip on={!!forGroup} label={forLabel} onClick={cycleFor} />
-        <Chip on={false} label="More" />
+        {type !== 'whole' && <Chip on={!!forGroup} label={forLabel} onClick={cycleFor} />}
       </div>
 
       <div className="results-head">
@@ -173,7 +188,7 @@ export default function Browse() {
           <SearchX size={48} strokeWidth={1.5} aria-hidden="true" />
           <p className="heading">No places match all of that yet.</p>
           <p className="muted">Try wider dates, or check back soon. New places go up every week.</p>
-          <button type="button" className="btn btn-secondary" onClick={() => setParams({}, { replace: true })}>
+          <button type="button" className="btn btn-secondary" onClick={clearAll}>
             Clear filters
           </button>
         </div>
@@ -188,18 +203,63 @@ export default function Browse() {
         </>
       )}
       {anyFilter && results.length > 0 && (
-        <button type="button" className="link-btn center-block" onClick={() => setParams({}, { replace: true })}>
+        <button type="button" className="link-btn center-block" onClick={clearAll}>
           Clear all filters
         </button>
+      )}
+      </div>
+      </div>
+      {sheetOpen && (
+        <FilterSheet
+          initial={filters}
+          myGroup={myGroup}
+          countFor={(f) => (listings ?? []).filter((l) => matches(l, f)).length}
+          onApply={(f) => {
+            apply(f)
+            setSheetOpen(false)
+          }}
+          onClose={() => setSheetOpen(false)}
+        />
       )}
     </div>
   )
 }
 
-function Chip({ on, label, onClick }: { on: boolean; label: string; onClick?: () => void }) {
+// Mobile filter sheet: edits a draft, and the button shows the live count.
+function FilterSheet({
+  initial,
+  myGroup,
+  countFor,
+  onApply,
+  onClose,
+}: {
+  initial: Filters
+  myGroup?: ReturnType<typeof useMyGroup>
+  countFor: (f: Filters) => number
+  onApply: (f: Filters) => void
+  onClose: () => void
+}) {
+  const [draft, setDraft] = useState(initial)
+  const n = countFor(draft)
+  return (
+    <Sheet title="Filters" onClose={onClose}>
+      <FilterPanel value={draft} onChange={setDraft} myGroup={myGroup} />
+      <div className="filter-foot">
+        <button type="button" className="link-btn" onClick={() => setDraft(EMPTY)} disabled={activeCount(draft) === 0}>
+          Clear all
+        </button>
+        <button type="button" className="btn btn-primary" onClick={() => onApply(draft)}>
+          {n === 0 ? 'No matches yet' : `Show ${n} ${n === 1 ? 'place' : 'places'}`}
+        </button>
+      </div>
+    </Sheet>
+  )
+}
+
+function Chip({ on, label, icon, onClick }: { on: boolean; label: string; icon?: ReactNode; onClick: () => void }) {
   return (
     <button type="button" className={on ? 'chip chip-on' : 'chip'} aria-pressed={on} onClick={onClick}>
-      {on && <Check size={14} strokeWidth={2} aria-hidden="true" />}
+      {icon ?? (on && <Check size={14} strokeWidth={2} aria-hidden="true" />)}
       {label}
     </button>
   )

@@ -1054,3 +1054,45 @@ button.metric-tile:hover { filter: brightness(0.97); }
 /* The photo tab skips the lime pill; active gets a lime ring with a gap. */
 .nav-item.active .nav-pill-round { background: transparent; }
 .nav-item.active .nav-avatar { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--lime-300); }
+
+/* ================= Browse filters ================= */
+.filter-panel { display: flex; flex-direction: column; gap: var(--space-6); }
+.filter-section { border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.filter-section > legend { padding: 0; margin-bottom: 10px; }
+.filter-section .toggle-row { min-height: 44px; }
+.money-wrap .input { padding-left: 30px; }
+.money-sign { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+.filter-foot {
+  position: sticky; bottom: calc(-24px - env(safe-area-inset-bottom));
+  display: flex; justify-content: space-between; align-items: center; gap: var(--space-4);
+  margin: 0 -20px calc(-24px - env(safe-area-inset-bottom));
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+.filter-foot .btn { flex: 1; max-width: 240px; }
+.filter-foot .link-btn { min-height: 44px; padding: 0 8px; }
+.filter-foot .link-btn:disabled { color: var(--muted); }
+.filter-rail { display: none; }
+
+/* Desktop: the filters live in a left rail and apply as you change them. */
+@media (min-width: 1280px) {
+  .browse-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 40px; align-items: start; }
+  .filter-rail {
+    display: block; position: sticky; top: 96px;
+    max-height: calc(100vh - 120px); overflow-y: auto;
+    padding: 20px; margin-top: 24px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
+  }
+  .filter-rail-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
+  .filter-rail-head .link-btn { min-height: 32px; }
+  .browse-main .chip-row { display: none; }
+  .browse-main .results-head { padding-top: 24px; }
+  .browse-main .results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1400px) {
+  .browse-main .results-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
+  .filter-rail .date-pair { grid-template-columns: minmax(0, 1fr); }
+  .filter-rail .seg { font-size: 12px; padding: 0 4px; }
+}
