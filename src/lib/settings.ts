@@ -3,6 +3,7 @@
 export type Theme = 'system' | 'light' | 'dark'
 const THEME_KEY = 'handoff:theme'
 const ANALYTICS_KEY = 'handoff:analytics'
+const RETURNING_KEY = 'handoff:has-account'
 
 function read(key: string) {
   try {
@@ -56,4 +57,14 @@ export function analyticsAllowed() {
 
 export function setAnalyticsAllowed(on: boolean) {
   write(ANALYTICS_KEY, on ? (gpcOn() ? 'on' : null) : 'off')
+}
+
+// Set once someone signs up or logs in on this device, so the sign-up sheet
+// opens on Log in for returning people and on Sign up for everyone else.
+export function isReturningDevice() {
+  return read(RETURNING_KEY) === '1'
+}
+
+export function markReturningDevice() {
+  write(RETURNING_KEY, '1')
 }

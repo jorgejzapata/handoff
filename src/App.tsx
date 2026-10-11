@@ -95,9 +95,9 @@ function RequireUser({ children }: { children: React.ReactNode }) {
   if (user) return <>{children}</>
   return (
     <div className="page empty">
-      <p className="heading">Log in to see your account.</p>
+      <p className="heading">Sign up or log in to see your account.</p>
       <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'login' })}>
-        Log in
+        Sign up or log in
       </button>
     </div>
   )

@@ -1116,3 +1116,7 @@ button.metric-tile:hover { filter: brightness(0.97); }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 .manage-boost { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Sign up / Log in tabs on the auth sheet */
+.auth-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 4px 40px 2px 0; }
+.auth-tabs .seg { min-height: 40px; font-size: 14px; }

@@ -22,9 +22,9 @@ export default function Me() {
   if (!user) {
     return (
       <div className="page empty">
-        <p className="heading">Log in to see your listings and messages.</p>
+        <p className="heading">Sign up or log in to see your listings and messages.</p>
         <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'login' })}>
-          Log in
+          Sign up or log in
         </button>
       </div>
     )

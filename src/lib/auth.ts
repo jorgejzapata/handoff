@@ -160,7 +160,7 @@ export class AuthMessage extends Error {
 export interface FriendlyError {
   message: string
   field?: 'email' | 'password' | 'name' | 'birthYear'
-  action?: 'login'
+  action?: 'login' | 'signup'
 }
 
 export function friendlyError(err: unknown): FriendlyError | null {
@@ -179,7 +179,7 @@ export function friendlyError(err: unknown): FriendlyError | null {
       case 'auth/invalid-credential':
       case 'auth/wrong-password':
       case 'auth/user-not-found':
-        return { message: "That email and password don't match." }
+        return { message: "That email and password don't match.", action: 'signup' }
       case 'auth/too-many-requests':
         return { message: 'Too many tries. Wait a minute, then try again.' }
       case 'auth/network-request-failed':

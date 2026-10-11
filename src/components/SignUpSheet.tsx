@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { useLocation } from 'react-router'
 import { X } from 'lucide-react'
 import { friendlyError, logInWithEmail, resetPassword, signUpWithEmail } from '../lib/auth'
+import { isReturningDevice, markReturningDevice } from '../lib/settings'
 import type { FriendlyError } from '../lib/auth'
 import { savePending, useAuth } from './AuthProvider'
 import type { PendingAction } from './AuthProvider'
@@ -33,7 +34,7 @@ function titleFor({ reason, listerName }: OpenArgs) {
     case 'messages':
       return 'Sign up to see your messages'
     case 'login':
-      return 'Sign up for Handoff'
+      return 'Join Handoff'
   }
 }
 
@@ -69,7 +70,9 @@ export function SignUpProvider({ children }: { children: ReactNode }) {
 type Mode = 'signup' | 'login' | 'reset'
 
 function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void }) {
-  const [mode, setMode] = useState<Mode>(args.reason === 'login' ? 'login' : 'signup')
+  // New devices start on Sign up, devices that have had an account start on
+  // Log in. Either way the two tabs at the top make the mode obvious.
+  const [mode, setMode] = useState<Mode>(isReturningDevice() ? 'login' : 'signup')
   const [showPassword, setShowPassword] = useState(false)
   const [firstName, setFirstName] = useState('')
   const [email, setEmail] = useState('')
@@ -133,6 +136,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
       if (password.length < 8) return setError({ message: 'Use at least 8 characters.', field: 'password' })
       void run(async () => {
         const user = await signUpWithEmail(firstName, email, password, { reason: args.reason })
+        markReturningDevice()
         onClose()
         await finishPending(user, { welcome: `Welcome to Handoff, ${firstName.trim()}!` })
       })
@@ -141,12 +145,13 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
 
     void run(async () => {
       const user = await logInWithEmail(email, password)
+      markReturningDevice()
       onClose()
       await finishPending(user, { welcome: `Welcome back${user.displayName ? `, ${user.displayName}` : ''}.` })
     })
   }
 
-  const title = mode === 'login' ? 'Log in to Handoff' : mode === 'reset' ? 'Reset your password' : titleFor(args)
+  const title = mode === 'login' ? 'Welcome back' : mode === 'reset' ? 'Reset your password' : titleFor(args)
   const fieldError = (f: FriendlyError['field']) => (error?.field === f ? error : null)
 
   return (
@@ -165,10 +170,34 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
           <X size={20} strokeWidth={1.5} />
         </button>
 
+        {mode !== 'reset' && (
+          <div className="segmented auth-tabs" role="tablist" aria-label="Sign up or log in">
+            {(
+              [
+                ['signup', 'Sign up'],
+                ['login', 'Log in'],
+              ] as [Mode, string][]
+            ).map(([m, label]) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={mode === m}
+                className={mode === m ? 'seg seg-on' : 'seg'}
+                onClick={() => switchMode(m)}
+                disabled={busy}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <h2 id={titleId} className="title-sm">
           {title}
         </h2>
-        {mode === 'signup' && <p className="muted">Free, and you're in right away.</p>}
+        {mode === 'signup' && <p className="muted">New here? It's free, and you're in right away.</p>}
+        {mode === 'login' && <p className="muted">Log in with the email you signed up with.</p>}
         {mode === 'reset' && !resetSent && <p className="muted">We'll email you a link to set a new one.</p>}
 
         {mode === 'reset' && resetSent ? (
@@ -237,6 +266,13 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
                 {error.message}
               </p>
             )}
+            {/* The common slip: a new person typing into Log in. One tap moves
+                what they typed over to Sign up. */}
+            {mode === 'login' && error?.action === 'signup' && (
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => switchMode('signup')}>
+                New here? Create an account with this email
+              </button>
+            )}
 
             <button type="submit" className="btn btn-primary btn-block" disabled={busy}>
               {busy
@@ -250,16 +286,13 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
           </form>
         )}
 
-        <p className="center">
-          {mode === 'signup' ? 'Already have an account? ' : mode === 'login' ? 'New to Handoff? ' : ''}
-          <button
-            type="button"
-            className="link-btn"
-            onClick={() => switchMode(mode === 'signup' ? 'login' : mode === 'login' ? 'signup' : 'login')}
-          >
-            {mode === 'signup' ? 'Log in' : mode === 'login' ? 'Sign up' : 'Back to log in'}
-          </button>
-        </p>
+        {mode === 'reset' && (
+          <p className="center">
+            <button type="button" className="link-btn" onClick={() => switchMode('login')}>
+              Back to log in
+            </button>
+          </p>
+        )}
         {mode === 'signup' && (
           <p className="caption muted center">
             By continuing you agree to the <a href="/terms">Terms</a> and <a href="/privacy">Privacy Policy</a>.
