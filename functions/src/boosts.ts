@@ -5,6 +5,7 @@ import { defineSecret } from 'firebase-functions/params'
 import { logger } from 'firebase-functions'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { appUrl } from './env.js'
+import { liveCount } from './stats.js'
 
 // Paid boosts: a boosted listing ranks first in Browse's default sort with a
 // Boosted tag. Payment is Stripe Checkout on the web; the webhook is the only
@@ -20,7 +21,7 @@ const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY')
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET')
 
 // Keep in sync with src/lib/boosts.ts.
-export const BOOST_GATE = 15 // live listings before boosts switch on
+export const BOOST_GATE = 25 // live listings (not counting internal accounts) before boosts switch on
 export const STUDENT_DISCOUNT = 0.2 // verified .edu members, to test
 export const TIERS = {
   '7d': { days: 7, cents: 500, label: '7-day boost' },
@@ -46,17 +47,6 @@ export function priceFor(tier: Tier, student: boolean) {
   return student ? Math.round(base * (1 - STUDENT_DISCOUNT)) : base
 }
 
-async function liveListingCount() {
-  const db = getFirestore()
-  const snap = await db
-    .collection('listings')
-    .where('status', '==', 'active')
-    .where('expiresAt', '>', Timestamp.now())
-    .count()
-    .get()
-  return snap.data().count
-}
-
 // Callable from the Boost screen: checks everything server-side, records a
 // pending order, and returns the Stripe Checkout URL.
 export const createBoostCheckout = onCall(
@@ -80,7 +70,7 @@ export const createBoostCheckout = onCall(
     if (l.status !== 'active' || !(l.expiresAt instanceof Timestamp) || l.expiresAt.toMillis() < Date.now())
       throw new HttpsError('failed-precondition', 'Only live listings can be boosted.')
 
-    if ((await liveListingCount()) < BOOST_GATE) throw new HttpsError('failed-precondition', "Boosts aren't on yet.")
+    if ((await liveCount()) < BOOST_GATE) throw new HttpsError('failed-precondition', "Boosts aren't on yet.")
 
     const student = isStudentToken(req.auth?.token as Record<string, unknown>)
     const amountCents = priceFor(tier, student)

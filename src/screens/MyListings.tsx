@@ -2,8 +2,7 @@ import { fetchSaveCount } from '../lib/saved'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { EllipsisVertical, House, Zap } from 'lucide-react'
-import { useActiveListings } from '../lib/useListings'
-import { BOOST_GATE } from '../lib/boosts'
+import { boostsUnlocked, useListingStats } from '../lib/pricing'
 import { useAuth } from '../components/AuthProvider'
 import { useInbox } from '../components/InboxProvider'
 import { useToast } from '../components/Toast'
@@ -43,8 +42,7 @@ export default function MyListings() {
   const [filling, setFilling] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<Listing | null>(null)
   // Boosts stay invisible until Handoff has enough live listings to make them worth it.
-  const { listings: live } = useActiveListings()
-  const boostsOn = (live?.length ?? 0) >= BOOST_GATE
+  const boostsOn = boostsUnlocked(useListingStats())
 
   const load = useCallback(() => {
     if (!user) return

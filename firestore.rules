@@ -550,6 +550,26 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Public listing counts that switch pricing on: published (the $1 fee
+    // starts at 50) and live (boosts unlock at 25). Written by Cloud
+    // Functions only; anyone can read them, signed out included.
+    match /stats/{statId} {
+      allow get: if statId == 'listings';
+      allow list, write: if false;
+    }
+
+    // Internal accounts (Jorge and test accounts): their listings never
+    // count toward the numbers above. Admins flip this in Admin → Users.
+    match /internal/{uid} {
+      allow read: if isAdmin();
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly(['by', 'at'])
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time;
+      allow delete: if isAdmin();
+      allow update: if false;
+    }
+
     // Stripe event IDs the webhook already handled. Server only.
     match /stripeEvents/{eventId} {
       allow read, write: if false;

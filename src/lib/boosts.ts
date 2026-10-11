@@ -5,7 +5,7 @@ import { track } from './track'
 
 // Keep in sync with functions/src/boosts.ts. The server decides the real
 // price and the gate; these are for display only.
-export const BOOST_GATE = 15
+export const BOOST_GATE = 25
 export const STUDENT_DISCOUNT = 0.2
 
 export type Tier = '7d' | '30d'
