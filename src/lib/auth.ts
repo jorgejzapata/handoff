@@ -78,7 +78,7 @@ export type SignupReason = 'say-hi' | 'save' | 'publish' | 'messages' | 'login'
 export type GenderAnswer = 'woman' | 'man' | 'nonbinary' | 'self'
 
 export interface SignupDetails {
-  birthYear: number
+  birthYear?: number
   gender?: GenderAnswer
   genderSelfDescribe?: string
   reason?: SignupReason
@@ -115,7 +115,7 @@ export async function ensureAnonymous() {
 
 export async function signUpWithEmail(firstName: string, email: string, password: string, details: SignupDetails) {
   const cleanEmail = email.trim().toLowerCase()
-  if (!isAdultBirthYear(details.birthYear)) throw new AuthMessage('under-18')
+  if (details.birthYear !== undefined && !isAdultBirthYear(details.birthYear)) throw new AuthMessage('under-18')
   const current = auth.currentUser
   const { user } = current?.isAnonymous
     ? await linkWithCredential(current, EmailAuthProvider.credential(cleanEmail, password))

@@ -8,6 +8,7 @@ import { fetchListing, listerSince, publishDraftById } from '../lib/listings'
 import { savePendingListing } from '../lib/saved'
 import { findMyConversation, startConversation } from '../lib/messages'
 import { isVerifiedStudent } from '../lib/auth'
+import { profileStepThen } from '../lib/users'
 
 // Right after signing up or logging in, finish what they were doing when the
 // sign-up sheet opened: send the first message, publish the listing, or save
@@ -55,7 +56,7 @@ export function useFinishPending() {
           if (listing?.status === 'active') {
             const id = await startConversation(listing, user, pending.message)
             toast(`${welcome} Your message to ${listing.lister.firstName} is sent.`)
-            navigate(`/messages/${id}`, { replace: true })
+            navigate(await profileStepThen(user.uid, `/messages/${id}`), { replace: true })
             return
           }
           toast('That place is no longer available.')

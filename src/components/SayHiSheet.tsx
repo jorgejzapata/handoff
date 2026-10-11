@@ -11,6 +11,7 @@ import { MESSAGE_MAX, startConversation } from '../lib/messages'
 import { formatDates } from '../lib/format'
 import { readLastSearch } from '../lib/lastSearch'
 import { openToGroup, openToLabel, useMyGroup } from '../lib/gender'
+import { profileStepThen } from '../lib/users'
 
 const QUICK = ['Can I see it this week?', 'Are utilities included?', 'Is the landlord OK with a sublease?']
 
@@ -55,7 +56,7 @@ export function SayHiSheet({ listing, onClose }: { listing: Listing; onClose: ()
     try {
       const id = await startConversation(listing, user, text)
       onClose()
-      navigate(`/messages/${id}`)
+      navigate(await profileStepThen(user.uid, `/messages/${id}`))
     } catch (e) {
       console.error('[handoff] say hi', e)
       toast("Couldn't send. Check your connection and try again.")

@@ -52,3 +52,10 @@ export async function markVerified(uid: string) {
     console.error('[handoff] mark verified', e)
   }
 }
+
+// New members finish their profile (photo, birth year, gender) right after
+// their first message or listing, then land where they were headed.
+export async function profileStepThen(uid: string, path: string) {
+  const p = await fetchProfile(uid).catch(() => null)
+  return p?.onboardingStep === 'profile' ? `/onboarding?next=${encodeURIComponent(path)}` : path
+}

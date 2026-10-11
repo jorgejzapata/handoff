@@ -70,11 +70,17 @@ export default function ProfileSetup() {
 
   async function finish(skip: boolean) {
     if (!user) return
+    // Birth year is the one thing Skip can't skip: Handoff is 18+.
+    if (needsBirthYear) {
+      if (!birthYear) return setError('Pick your birth year to continue.')
+      if (!isAdultBirthYear(Number(birthYear))) return setError('You need to be 18 or older to use Handoff.')
+    }
+    const birth = needsBirthYear ? { birthYear: Number(birthYear) } : {}
     setSaving(true)
     setError(null)
     try {
       if (skip) {
-        await saveProfile(user.uid, { onboardingStep: 'skipped' })
+        await saveProfile(user.uid, { ...birth, onboardingStep: 'skipped' })
       } else {
         await saveProfile(user.uid, {
           ...(photoUrl ? { photoUrl } : {}),
@@ -82,10 +88,10 @@ export default function ProfileSetup() {
           bio: bio.trim(),
           gender: gender ?? deleteField(),
           genderSelfDescribe: gender === 'self' && genderSelf.trim() ? genderSelf.trim() : deleteField(),
-          ...(needsBirthYear && isAdultBirthYear(Number(birthYear)) ? { birthYear: Number(birthYear) } : {}),
+          ...birth,
           onboardingStep: 'done',
         })
-        track('profile_completed', { photo: !!photoUrl, year: !!year, bio: !!bio.trim() })
+        track('profile_completed', { photo: !!photoUrl, year: !!year, bio: !!bio.trim(), gender: !!gender })
         invalidateMyGroup()
         if (photoUrl) {
           await updateProfile(user, { photoURL: photoUrl })
@@ -190,7 +196,7 @@ export default function ProfileSetup() {
               </option>
             ))}
           </select>
-          <p className="helper">Only you see this. Handoff is for people 18 and older.</p>
+          <p className="helper">Required. Only you see this. Handoff is for people 18 and older.</p>
         </div>
       )}
 

@@ -1,19 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useLocation } from 'react-router'
-import { Check, X } from 'lucide-react'
-import {
-  birthYearOptions,
-  friendlyError,
-  isAdultBirthYear,
-  logInWithEmail,
-  MIN_AGE,
-  resetPassword,
-  signUpWithEmail,
-} from '../lib/auth'
+import { X } from 'lucide-react'
+import { friendlyError, logInWithEmail, resetPassword, signUpWithEmail } from '../lib/auth'
 import type { FriendlyError } from '../lib/auth'
-import { GENDERS, GENDER_SELF_MAX, invalidateMyGroup } from '../lib/gender'
-import type { Gender } from '../lib/gender'
 import { savePending, useAuth } from './AuthProvider'
 import type { PendingAction } from './AuthProvider'
 import { useFinishPending } from './useFinishPending'
@@ -84,9 +74,6 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
   const [firstName, setFirstName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [birthYear, setBirthYear] = useState('')
-  const [gender, setGender] = useState<Gender | undefined>()
-  const [genderSelf, setGenderSelf] = useState('')
   const [error, setError] = useState<FriendlyError | null>(null)
   const [busy, setBusy] = useState(false)
   const [resetSent, setResetSent] = useState(false)
@@ -144,17 +131,8 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
       if (!firstName.trim()) return setError({ message: 'Add your first name.', field: 'name' })
       if (!email.trim()) return setError({ message: 'Add your email.', field: 'email' })
       if (password.length < 8) return setError({ message: 'Use at least 8 characters.', field: 'password' })
-      if (!birthYear) return setError({ message: 'Pick your birth year.', field: 'birthYear' })
-      if (!isAdultBirthYear(Number(birthYear)))
-        return setError({ message: `You need to be ${MIN_AGE} or older to use Handoff.`, field: 'birthYear' })
       void run(async () => {
-        const user = await signUpWithEmail(firstName, email, password, {
-          birthYear: Number(birthYear),
-          gender,
-          genderSelfDescribe: genderSelf,
-          reason: args.reason,
-        })
-        if (gender) invalidateMyGroup()
+        const user = await signUpWithEmail(firstName, email, password, { reason: args.reason })
         onClose()
         await finishPending(user, { welcome: `Welcome to Handoff, ${firstName.trim()}!` })
       })
@@ -252,60 +230,6 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
                   </button>
                 )}
               </Field>
-            )}
-
-            {mode === 'signup' && (
-              <>
-                <Field id="su-birth" label="Birth year" error={fieldError('birthYear')}>
-                  <select
-                    id="su-birth"
-                    className="input"
-                    autoComplete="bday-year"
-                    value={birthYear}
-                    onChange={(e) => setBirthYear(e.target.value)}
-                    aria-invalid={!!fieldError('birthYear')}
-                  >
-                    <option value="" disabled>
-                      Select year
-                    </option>
-                    {birthYearOptions().map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
-                  {!fieldError('birthYear') && <p className="helper">Handoff is for people {MIN_AGE} and older.</p>}
-                </Field>
-
-                <fieldset className="field chip-field">
-                  <legend className="label">Gender (optional)</legend>
-                  <div className="chips-wrap">
-                    {GENDERS.map(([g, label]) => (
-                      <button
-                        key={g}
-                        type="button"
-                        className={gender === g ? 'chip chip-on' : 'chip'}
-                        aria-pressed={gender === g}
-                        onClick={() => setGender(gender === g ? undefined : g)}
-                      >
-                        {gender === g && <Check size={14} strokeWidth={2} aria-hidden="true" />}
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  {gender === 'self' && (
-                    <input
-                      className="input gender-self"
-                      aria-label="Your gender, in your words"
-                      maxLength={GENDER_SELF_MAX}
-                      placeholder="In your words"
-                      value={genderSelf}
-                      onChange={(e) => setGenderSelf(e.target.value)}
-                    />
-                  )}
-                  <p className="helper">Only you see this. It helps show places that are open to you.</p>
-                </fieldset>
-              </>
             )}
 
             {error && !error.field && (
