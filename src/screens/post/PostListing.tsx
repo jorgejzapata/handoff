@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { X } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router'
+import { Tag, X } from 'lucide-react'
 import { useAuth } from '../../components/AuthProvider'
 import { useSignUp } from '../../components/SignUpSheet'
 import { useToast } from '../../components/Toast'
@@ -8,6 +8,7 @@ import { ListingView } from '../../components/ListingView'
 import { ensureAnonymous } from '../../lib/auth'
 import { getDraftPointer, setDraftPointer, takeDraftNotice } from '../../lib/draftCarry'
 import {
+  computeExpiry,
   createDraft,
   deleteDraft,
   draftToPreview,
@@ -21,6 +22,16 @@ import type { ListingDraft } from '../../lib/listings'
 import { clearListingsCache } from '../../lib/useListings'
 import { StepLease, StepLocation, StepOffering, StepPhotos, StepPlace, StepRentDates, stepValid } from './PostSteps'
 import { track, trackScreen } from '../../lib/track'
+import { formatCents } from '../../lib/boosts'
+import {
+  LISTING_FEE_CENTS,
+  fetchListingStats,
+  freeSpotsLeft,
+  listingFeeApplies,
+  postingPriceLine,
+  useListingStats,
+} from '../../lib/pricing'
+import { ListingFeeBody, TestCheckoutSheet } from './ListingFee'
 
 // Post a listing: six short steps and a preview. No account needed until
 // Publish; the draft autosaves to Firestore under an anonymous account.
@@ -50,6 +61,14 @@ export default function PostListing() {
   const [save, setSave] = useState<SaveState>('idle')
   const [uploading, setUploading] = useState(0)
   const [publishing, setPublishing] = useState(false)
+  // The $1 step, after Preview. Opened by Publish, or by ?checkout=1 when a
+  // new account comes back from the sign-up sheet.
+  const [checkout, setCheckout] = useState(false)
+  const [testPay, setTestPay] = useState(false)
+  const [payError, setPayError] = useState<string | null>(null)
+  const [params, setParams] = useSearchParams()
+  const resumeCheckout = params.get('checkout') === '1'
+  const stats = useListingStats()
 
   const pending = useRef<ListingDraft>({})
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -77,15 +96,21 @@ export default function PostListing() {
       setDraftId(pointer)
       setDraft(d)
       const notice = takeDraftNotice()
-      if (notice) {
-        toast(notice)
+      if (resumeCheckout) setParams({}, { replace: true })
+      if (resumeCheckout && !notice && missingForPublish(d).length === 0) {
+        setPhase('editing')
+        setStep(PREVIEW)
+        setCheckout(true)
+        track('listing_fee_viewed', { listing_id: pointer, from: 'signup' })
+      } else if (notice || resumeCheckout) {
+        if (notice) toast(notice)
         setPhase('editing')
         setStep(firstOpenStep(d))
       } else {
         setPhase('resume')
       }
     })
-  }, [authLoading, rawUser, phase, toast])
+  }, [authLoading, rawUser, phase, toast, resumeCheckout, setParams])
 
   // ---- Autosave ----
   const ensureDraft = useCallback(async () => {
@@ -151,6 +176,8 @@ export default function PostListing() {
   }, [step])
 
   function go(next: number) {
+    setCheckout(false)
+    setPayError(null)
     void flush()
     if (next > step) track('post_step_completed', { step: step + 1 })
     setStep(Math.max(0, Math.min(PREVIEW, next)))
@@ -170,6 +197,19 @@ export default function PostListing() {
   }
 
   // ---- Publish ----
+  const lister = () => ({
+    firstName: user?.displayName || 'A student',
+    since: listerSince(user?.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date()),
+    verified: studentVerified,
+  })
+
+  async function goLive(id: string) {
+    await publishListing(id, draft, lister())
+    clearListingsCache()
+    setDraftPointer(null)
+    navigate(`/post/live/${id}`, { replace: true })
+  }
+
   async function publish() {
     await flush()
     const id = idRef.current
@@ -180,19 +220,49 @@ export default function PostListing() {
     }
     setPublishing(true)
     try {
-      await publishListing(id, draft, {
-        firstName: user?.displayName || 'A student',
-        since: listerSince(user?.metadata.creationTime ? new Date(user.metadata.creationTime) : new Date()),
-        verified: studentVerified,
-      })
-      clearListingsCache()
-      setDraftPointer(null)
-      navigate(`/post/live/${id}`, { replace: true })
+      // Decide the price at the moment of publishing, from a fresh count.
+      if (listingFeeApplies(await fetchListingStats())) {
+        setPublishing(false)
+        setPayError(null)
+        setCheckout(true)
+        window.scrollTo({ top: 0 })
+        track('listing_fee_viewed', { listing_id: id, from: 'preview' })
+        return
+      }
+      await goLive(id)
     } catch (e) {
       console.error('[handoff] publish', e)
       toast("Couldn't publish. Check each step, then try again.")
       setPublishing(false)
     }
+  }
+
+  function pay() {
+    const id = idRef.current
+    if (!id) return
+    setPayError(null)
+    track('listing_fee_checkout_started', { listing_id: id, value: LISTING_FEE_CENTS / 100, currency: 'USD' })
+    // Stripe Checkout goes here next ('stripe' mode). Until then: the test sheet.
+    setTestPay(true)
+  }
+
+  async function paidThenPublish() {
+    const id = idRef.current
+    if (!id) return
+    try {
+      await goLive(id)
+      track('listing_fee_paid', { listing_id: id, value: LISTING_FEE_CENTS / 100, currency: 'USD', store: 'test' })
+    } catch (e) {
+      console.error('[handoff] publish after payment', e)
+      setTestPay(false)
+      setPayError("Your payment went through, but publishing didn't. Try again. You won't be charged twice.")
+    }
+  }
+
+  function declined() {
+    setTestPay(false)
+    track('listing_fee_failed', { listing_id: idRef.current ?? undefined, step: 'card_declined' })
+    setPayError('Your card was declined, so nothing was charged. Try again, or use a different card.')
   }
 
   // ---- Render ----
@@ -230,6 +300,9 @@ export default function PostListing() {
   const isPreview = step === PREVIEW
   const valid = isPreview || (stepValid(step, draft) && !(step === 3 && uploading > 0))
   const missing = missingForPublish(draft)
+  const feeDue = listingFeeApplies(stats)
+  const spots = stats ? freeSpotsLeft(stats) : null
+  const fee = formatCents(LISTING_FEE_CENTS)
 
   return (
     <div className="wizard">
@@ -238,7 +311,15 @@ export default function PostListing() {
         <div className="progress-fill" style={{ width: `${(Math.min(step + 1, PREVIEW) / PREVIEW) * 100}%` }} />
       </div>
 
-      {isPreview ? (
+      {isPreview && checkout ? (
+        <main className="wizard-body">
+          <ListingFeeBody
+            listing={draftToPreview(draft, { firstName: user?.displayName || 'You', since: listerSince() })}
+            expiresAt={(draft.availableTo ? computeExpiry(draft.availableTo) : null)?.toDate() ?? new Date()}
+            error={payError}
+          />
+        </main>
+      ) : isPreview ? (
         <main className="wizard-preview">
           <div className="wizard-body preview-head">
             <p className="eyebrow">Preview</p>
@@ -249,6 +330,21 @@ export default function PostListing() {
               </div>
             ) : (
               <p className="muted">Tap Edit on any section to change it.</p>
+            )}
+            {missing.length === 0 && feeDue && (
+              <p className="notice">
+                <Tag size={18} strokeWidth={1.5} aria-hidden="true" />
+                <span>Publishing costs {fee}, one time. You’ll confirm before anything is charged.</span>
+              </p>
+            )}
+            {missing.length === 0 && !feeDue && spots !== null && spots > 0 && spots <= 5 && (
+              <p className="notice">
+                <Tag size={18} strokeWidth={1.5} aria-hidden="true" />
+                <span>
+                  {spots === 1 ? 'Only 1 free spot left.' : `Only ${spots} free spots left.`} Publish now and yours is
+                  free.
+                </span>
+              </p>
             )}
           </div>
           <ListingView
@@ -278,23 +374,38 @@ export default function PostListing() {
           {step === 5 && <StepLease draft={draft} update={update} />}
 
           {step === 0 && (
-            <p className="notice caption">No account needed yet. Your draft saves as you go.</p>
+            <div className="notice caption">
+              <Tag size={18} strokeWidth={1.5} aria-hidden="true" />
+              <div>
+                <p className="notice-title">{postingPriceLine(stats)}</p>
+                <p className="muted">No account needed yet. Your draft saves as you go.</p>
+              </div>
+            </div>
           )}
         </main>
       )}
 
       <footer className="wizard-foot">
-        <button type="button" className="link-btn" onClick={() => go(step - 1)} disabled={step === 0}>
+        <button
+          type="button"
+          className="link-btn"
+          onClick={() => (checkout ? go(PREVIEW) : go(step - 1))}
+          disabled={step === 0}
+        >
           Back
         </button>
-        {isPreview ? (
+        {isPreview && checkout ? (
+          <button type="button" className="btn btn-accent" onClick={pay} disabled={testPay}>
+            Pay {fee} and publish
+          </button>
+        ) : isPreview ? (
           <button
             type="button"
             className="btn btn-accent"
             onClick={publish}
             disabled={missing.length > 0 || publishing}
           >
-            {publishing ? 'Publishing…' : 'Publish'}
+            {publishing ? 'Publishing…' : feeDue ? `Publish · ${fee}` : 'Publish'}
           </button>
         ) : (
           <button type="button" className="btn btn-primary" disabled={!valid} onClick={() => go(step + 1)}>
@@ -302,6 +413,10 @@ export default function PostListing() {
           </button>
         )}
       </footer>
+
+      {testPay && (
+        <TestCheckoutSheet onPaid={paidThenPublish} onDeclined={declined} onClose={() => setTestPay(false)} />
+      )}
     </div>
   )
 }

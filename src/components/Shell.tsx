@@ -160,6 +160,7 @@ export function Footer() {
       <div className="footer-links">
         <Link to="/terms">Terms</Link>
         <Link to="/privacy">Privacy</Link>
+        <Link to="/pricing">Pricing</Link>
         <Link to="/safety">Safety</Link>
         <Link to="/support">Contact</Link>
       </div>

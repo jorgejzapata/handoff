@@ -65,6 +65,9 @@ export const onUserCreated = onDocumentCreated(
     const data = event.data?.data()
     const uid = event.params.uid
     if (!data) return
+    // Joined at Publish: the "you're live" email welcomes them instead, so
+    // they don't get two emails a few seconds apart (see listingLive.ts).
+    if (data.signupReason === 'publish') return
 
     // Claim the send first so a retry can never email twice.
     const db = getFirestore()

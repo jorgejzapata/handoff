@@ -6,8 +6,8 @@ import { ListingPhoto } from '../components/ListingCard'
 import { fetchListing } from '../lib/listings'
 import type { Listing } from '../lib/listings'
 import { isVerifiedStudent } from '../lib/auth'
-import { useActiveListings } from '../lib/useListings'
-import { BOOST_GATE, TIERS, endDateFor, formatCents, priceFor, startBoostCheckout, watchOrder } from '../lib/boosts'
+import { boostsUnlocked, useListingStats } from '../lib/pricing'
+import { TIERS, endDateFor, formatCents, priceFor, startBoostCheckout, watchOrder } from '../lib/boosts'
 import type { BoostOrder, Tier } from '../lib/boosts'
 import { formatDates, formatRent } from '../lib/format'
 import { track } from '../lib/track'
@@ -23,7 +23,7 @@ export default function Boost() {
   const [tier, setTier] = useState<Tier>('30d')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { listings: live } = useActiveListings()
+  const stats = useListingStats()
   const student = isVerifiedStudent(user)
 
   useEffect(() => {
@@ -37,9 +37,9 @@ export default function Boost() {
     if (listing) track('boost_viewed', { listing_id: listing.id, already_boosted: listing.boosted })
   }, [listing])
 
-  if (listing === undefined || live === null) return <div className="page" aria-busy="true" />
+  if (listing === undefined || stats === null) return <div className="page" aria-busy="true" />
 
-  const unlocked = live.length >= BOOST_GATE
+  const unlocked = boostsUnlocked(stats)
   if (!listing || listing.status !== 'active' || !unlocked)
     return (
       <div className="page empty">

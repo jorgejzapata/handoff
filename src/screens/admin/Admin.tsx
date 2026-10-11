@@ -12,6 +12,7 @@ import {
   dismissReports,
   fetchAdminData,
   fetchViews7d,
+  setInternal,
   setListingStatus,
   suspendUser,
   unsuspendUser,
@@ -54,6 +55,7 @@ interface Data {
   users: AdminUser[]
   reports: AdminReport[]
   suspensions: Suspension[]
+  internal: Set<string>
 }
 
 // The one dialog every admin action goes through: a required one-line reason.
@@ -145,6 +147,17 @@ function Admin() {
       action: 'Lift suspension',
       run: (reason) => unsuspendUser(me, u.uid, reason),
     })
+  async function toggleInternal(u: AdminUser, on: boolean) {
+    try {
+      await setInternal(me, u.uid, on)
+      toast(on ? `${u.firstName || u.email} is a test account. Their listings don't count.` : `${u.firstName || u.email} counts again.`)
+      load()
+    } catch (e) {
+      console.error('[handoff] internal flag', e)
+      toast("That didn't save. Deploy the latest rules, then try again.")
+    }
+  }
+
   const dismiss = (reportIds: string[]) =>
     act({
       title: reportIds.length === 1 ? 'Dismiss this report?' : `Dismiss ${reportIds.length} reports?`,
@@ -233,6 +246,7 @@ function Admin() {
           }}
           onSuspend={suspend}
           onUnsuspend={unsuspend}
+          onToggleInternal={toggleInternal}
         />
       )}
 
@@ -244,8 +258,12 @@ function Admin() {
 // ---------------- Overview ----------------
 
 export function Overview({ data, views7d, onOpenReports }: { data: Data; views7d: number | null; onOpenReports: () => void }) {
-  const m = computeMetrics(data.listings, data.users, data.reports)
-  const who = computeDemographics(data.users)
+  // Internal accounts (Jorge, test accounts) never count.
+  const realListings = data.listings.filter((l) => !data.internal.has(l.ownerId))
+  const realUsers = data.users.filter((u) => !data.internal.has(u.uid))
+  const m = computeMetrics(realListings, realUsers, data.reports)
+  const who = computeDemographics(realUsers)
+  const feeOn = m.published >= GOALS.freeListings
   const boostsOn = m.activeListings >= GOALS.boostGate
   const delta = (now: number, before: number) => (now === before ? 'Same as last week' : `${now > before ? '+' : ''}${now - before} vs last week`)
 
@@ -269,7 +287,7 @@ export function Overview({ data, views7d, onOpenReports }: { data: Data; views7d
         <Tile label="Listings filled" value={`${m.filledPct}%`} goal={`Goal: ${GOALS.filledPct}%+ → pitch property managers`} sub={`${m.filled} of ${m.published} published`} met={m.published >= 10 && m.filledPct >= GOALS.filledPct} />
         <Tile label="Filled through Handoff" value={m.filled ? `${m.filledViaPct}%` : '–'} goal='Lister answered "On Handoff"' sub={m.filled ? `of ${m.filled} filled` : 'No fills yet'} />
         <Tile label="Boost conversion" value="–" goal={`Goal: ${GOALS.boostConversionPct}%+ of listings`} sub={boostsOn ? 'Boosts not built yet' : `Boosts locked until ${GOALS.boostGate} live`} />
-        <Tile label="Revenue per listing" value="$0" goal="Goal: rising month over month" sub="Starts with boosts" />
+        <Tile label="Revenue per listing" value="$0" goal="Goal: rising month over month" sub={`Boosts at ${GOALS.boostGate} live · $1 fee after ${GOALS.freeListings} published`} />
         <Tile label="Reports this week" value={String(m.reportsThisWeek)} goal="Spikes flag a trust problem" sub={`${m.openReports} open · ${delta(m.reportsThisWeek, m.reportsLastWeek)}`} warn={m.reportsThisWeek > Math.max(3, m.reportsLastWeek * 2)} onClick={m.openReports ? onOpenReports : undefined} />
         <Tile label="Members" value={String(m.students)} goal="Signed up" sub={`${m.newStudentsThisWeek} new this week`} />
         <Tile label="Verified students" value={String(who.verifiedStudents)} goal="Confirmed a .edu email" sub={who.total ? `${Math.round((who.verifiedStudents / who.total) * 100)}% of members` : 'No members yet'} />
@@ -286,6 +304,23 @@ export function Overview({ data, views7d, onOpenReports }: { data: Data; views7d
         <div className="progress boost-progress" role="progressbar" aria-valuemin={0} aria-valuemax={GOALS.boostGate} aria-valuenow={m.activeListings}>
           <div className="progress-fill" style={{ width: `${Math.min(100, (m.activeListings / GOALS.boostGate) * 100)}%` }} />
         </div>
+      </div>
+
+      <div className="boost-gate">
+        <div className="boost-gate-text">
+          <span className="label">{feeOn ? 'Free spots used up: posting is $1' : `Free spots used: $1 to post after ${GOALS.freeListings}`}</span>
+          <span className="caption muted">
+            {Math.min(m.published, GOALS.freeListings)} / {GOALS.freeListings}
+          </span>
+        </div>
+        <div className="progress boost-progress" role="progressbar" aria-valuemin={0} aria-valuemax={GOALS.freeListings} aria-valuenow={m.published}>
+          <div className="progress-fill" style={{ width: `${Math.min(100, (m.published / GOALS.freeListings) * 100)}%` }} />
+        </div>
+        {data.internal.size > 0 && (
+          <span className="caption muted">
+            Not counting {data.internal.size} test {data.internal.size === 1 ? 'account' : 'accounts'}.
+          </span>
+        )}
       </div>
 
       <div className="charts-grid">
@@ -650,12 +685,14 @@ function UsersTable({
   onViewListings,
   onSuspend,
   onUnsuspend,
+  onToggleInternal,
 }: {
   data: Data
   suspended: Map<string, Suspension>
   onViewListings: (uid: string) => void
   onSuspend: (u: AdminUser) => void
   onUnsuspend: (u: AdminUser) => void
+  onToggleInternal: (u: AdminUser, on: boolean) => void
 }) {
   const [q, setQ] = useState('')
   const listingCount = (uid: string) => data.listings.filter((l) => l.ownerId === uid && l.status !== 'draft').length
@@ -684,6 +721,7 @@ function UsersTable({
               <th>Listings</th>
               <th>Reports</th>
               <th>Status</th>
+              <th title="Test accounts' listings don't count toward free spots or the boost gate">Test account</th>
               <th>
                 <span className="sr-only">Actions</span>
               </th>
@@ -718,6 +756,16 @@ function UsersTable({
                     ) : (
                       <span className="status-chip status-active">Active</span>
                     )}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={data.internal.has(u.uid)}
+                      aria-label={`${u.firstName || u.email} is a test account`}
+                      className={data.internal.has(u.uid) ? 'switch switch-on' : 'switch'}
+                      onClick={() => onToggleInternal(u, !data.internal.has(u.uid))}
+                    />
                   </td>
                   <td className="row-actions">
                     {susp ? (

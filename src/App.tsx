@@ -30,6 +30,7 @@ import ProfileSetup from './screens/ProfileSetup'
 import Verify, { ConfirmEmail, Verified } from './screens/Verify'
 import Me from './screens/Me'
 import Boost, { BoostResult } from './screens/Boost'
+import Pricing from './screens/Pricing'
 import { usingEmulators } from './lib/firebase'
 import { trackScreen } from './lib/track'
 
@@ -195,6 +196,7 @@ export default function App() {
             }
           />
           <Route path="delete-account" element={<DeleteAccountInfo />} />
+          <Route path="pricing" element={<Pricing />} />
           <Route path="safety" element={<Safety />} />
           <Route path="terms" element={<Terms />} />
           <Route path="privacy" element={<Privacy />} />

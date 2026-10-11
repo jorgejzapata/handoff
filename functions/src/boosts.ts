@@ -1,26 +1,20 @@
 import Stripe from 'stripe'
 import { onCall, onRequest, HttpsError } from 'firebase-functions/v2/https'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
-import { defineSecret } from 'firebase-functions/params'
 import { logger } from 'firebase-functions'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { appUrl } from './env.js'
+import { liveCount } from './stats.js'
+import { STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, stripe } from './stripe.js'
+import { activateListingFee, closeListingOrder } from './listingFee.js'
 
 // Paid boosts: a boosted listing ranks first in Browse's default sort with a
 // Boosted tag. Payment is Stripe Checkout on the web; the webhook is the only
 // thing that ever starts a boost, and only these functions write boost fields
 // (the Firestore rules block the client from them).
-//
-// Secrets (set once per project):
-//   firebase functions:secrets:set STRIPE_SECRET_KEY -P dev    (sk_test_...)
-//   firebase functions:secrets:set STRIPE_WEBHOOK_SECRET -P dev (whsec_...)
-// and the same with -P prod and live keys.
-
-const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY')
-const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET')
 
 // Keep in sync with src/lib/boosts.ts.
-export const BOOST_GATE = 15 // live listings before boosts switch on
+export const BOOST_GATE = 25 // live listings (not counting internal accounts) before boosts switch on
 export const STUDENT_DISCOUNT = 0.2 // verified .edu members, to test
 export const TIERS = {
   '7d': { days: 7, cents: 500, label: '7-day boost' },
@@ -29,10 +23,6 @@ export const TIERS = {
 export type Tier = keyof typeof TIERS
 
 const DAY = 24 * 60 * 60 * 1000
-
-function stripe() {
-  return new Stripe(STRIPE_SECRET_KEY.value())
-}
 
 // Same test as isStudentVerified() in firestore.rules: a confirmed .edu email,
 // read from the verified auth token, never from anything the app sends.
@@ -44,17 +34,6 @@ function isStudentToken(token: Record<string, unknown> | undefined) {
 export function priceFor(tier: Tier, student: boolean) {
   const base = TIERS[tier].cents
   return student ? Math.round(base * (1 - STUDENT_DISCOUNT)) : base
-}
-
-async function liveListingCount() {
-  const db = getFirestore()
-  const snap = await db
-    .collection('listings')
-    .where('status', '==', 'active')
-    .where('expiresAt', '>', Timestamp.now())
-    .count()
-    .get()
-  return snap.data().count
 }
 
 // Callable from the Boost screen: checks everything server-side, records a
@@ -80,7 +59,7 @@ export const createBoostCheckout = onCall(
     if (l.status !== 'active' || !(l.expiresAt instanceof Timestamp) || l.expiresAt.toMillis() < Date.now())
       throw new HttpsError('failed-precondition', 'Only live listings can be boosted.')
 
-    if ((await liveListingCount()) < BOOST_GATE) throw new HttpsError('failed-precondition', "Boosts aren't on yet.")
+    if ((await liveCount()) < BOOST_GATE) throw new HttpsError('failed-precondition', "Boosts aren't on yet.")
 
     const student = isStudentToken(req.auth?.token as Record<string, unknown>)
     const amountCents = priceFor(tier, student)
@@ -150,12 +129,15 @@ export const stripeWebhook = onRequest(
     try {
       if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
         const s = event.data.object as Stripe.Checkout.Session
-        if (s.payment_status === 'paid') await activate(s, seen)
+        if (s.payment_status === 'paid' && s.metadata?.kind === 'listing') await activateListingFee(s, seen)
+        else if (s.payment_status === 'paid') await activate(s, seen)
         else await seen.create({ type: event.type, at: FieldValue.serverTimestamp() }).catch(() => {})
       } else if (event.type === 'checkout.session.expired' || event.type === 'checkout.session.async_payment_failed') {
         const s = event.data.object as Stripe.Checkout.Session
         const orderId = s.metadata?.orderId
-        if (orderId) {
+        if (orderId && s.metadata?.kind === 'listing') {
+          await closeListingOrder(orderId, event.type === 'checkout.session.expired' ? 'expired' : 'failed', seen, event.type)
+        } else if (orderId) {
           await db.runTransaction(async (tx) => {
             if ((await tx.get(seen)).exists) return
             const o = await tx.get(db.doc(`boostOrders/${orderId}`))

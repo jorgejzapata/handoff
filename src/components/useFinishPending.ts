@@ -9,6 +9,7 @@ import { savePendingListing } from '../lib/saved'
 import { findMyConversation, startConversation } from '../lib/messages'
 import { isVerifiedStudent } from '../lib/auth'
 import { profileStepThen } from '../lib/users'
+import { fetchListingStats, listingFeeApplies } from '../lib/pricing'
 
 // Right after signing up or logging in, finish what they were doing when the
 // sign-up sheet opened: send the first message, publish the listing, or save
@@ -24,6 +25,12 @@ export function useFinishPending() {
 
       if (pending?.reason === 'publish') {
         const id = getDraftPointer() ?? pending.listingId
+        // Past the free spots: back to the wizard's $1 step, never a silent charge.
+        if (id && listingFeeApplies(await fetchListingStats())) {
+          toast(`${welcome} One last step to publish.`)
+          navigate('/post?checkout=1', { replace: true })
+          return
+        }
         try {
           const live =
             !!id &&

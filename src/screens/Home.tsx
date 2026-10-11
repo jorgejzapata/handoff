@@ -8,6 +8,8 @@ import { Footer } from '../components/Shell'
 import { useActiveListings } from '../lib/useListings'
 import { useAuth } from '../components/AuthProvider'
 import { maskBlockedLanguage } from '../lib/moderation'
+import { FREE_LISTINGS, freeSpotsLeft, listingFeeApplies, useListingStats } from '../lib/pricing'
+import type { ListingStats } from '../lib/pricing'
 
 type PlaceType = 'any' | 'room' | 'whole'
 
@@ -29,6 +31,8 @@ export default function Home() {
 
   const { listings, loading } = useActiveListings()
   const { rawUser } = useAuth()
+  const stats = useListingStats()
+  const feeOn = listingFeeApplies(stats)
   const newest = (listings ?? []).slice(0, 8)
   const mine = rawUser ? (listings ?? []).find((l) => l.ownerId === rawUser.uid) : undefined
 
@@ -53,7 +57,7 @@ export default function Home() {
           </h1>
           <p className="lead">Find a room for a semester, or hand off your lease to another student.</p>
           <ul className="hero-points" aria-label="Why Handoff">
-            {['Free to post', 'Sign up in seconds', 'No fees to message'].map((t) => (
+            {[feeOn ? 'Free to browse' : 'Free to post', 'Sign up in seconds', 'No fees to message'].map((t) => (
               <li key={t}>
                 <Check size={16} strokeWidth={2} aria-hidden="true" />
                 {t}
@@ -132,7 +136,8 @@ export default function Home() {
           <h2 className="heading" id="lister-heading">
             Leaving for the summer or a semester?
           </h2>
-          <p>Hand off your lease to another student. Posting is free and takes about 5 minutes.</p>
+          <p>Hand off your lease to another student. It takes about 5 minutes.</p>
+          <PostingPrice stats={stats} />
         </div>
         <Link to="/post" className="btn btn-secondary">
           Post your place
@@ -187,7 +192,7 @@ export default function Home() {
         <ol className="how">
           {(
             [
-              [PencilLine, 'Post for free', 'Rooms and whole-place lease takeovers, in about 5 minutes.'],
+              [PencilLine, feeOn ? 'Post your place' : 'Post for free', 'Rooms and whole-place lease takeovers, in about 5 minutes.'],
               [MessageCircle, 'Chat right in Handoff', 'Message listers without sharing your number. Look for the Verified student badge.'],
               [Handshake, 'Hand it off', 'Sort out the lease with your landlord, then mark it filled.'],
             ] as const
@@ -215,6 +220,64 @@ export default function Home() {
       </section>
 
       <Footer />
+    </div>
+  )
+}
+
+// The price, stated before anyone starts the form. While free spots last it
+// doubles as the launch hook; after that it's one plain line.
+function PostingPrice({ stats }: { stats: ListingStats | null }) {
+  const fee = listingFeeApplies(stats)
+  const left = stats ? freeSpotsLeft(stats) : FREE_LISTINGS
+  const used = FREE_LISTINGS - left
+
+  if (fee)
+    return (
+      <p className="lister-price caption">
+        <span>
+          <strong>$1 to post</strong>, one time. Browsing and messaging are always free.{' '}
+          <Link to="/pricing" className="text-link">
+            Pricing
+          </Link>
+        </span>
+      </p>
+    )
+
+  if (stats && left === 0)
+    return (
+      <p className="lister-price caption">
+        <span>
+          <strong>Free to post</strong> right now.{' '}
+          <Link to="/pricing" className="text-link">
+            Pricing
+          </Link>
+        </span>
+      </p>
+    )
+
+  return (
+    <div className="lister-price">
+      {stats && used >= 5 ? (
+        <div className="free-spots">
+          <div className="free-spots-text">
+            <span>Free for the first {FREE_LISTINGS} places</span>
+            <span>{left} left</span>
+          </div>
+          <div className="progress" role="progressbar" aria-label="Free spots used" aria-valuemin={0} aria-valuemax={FREE_LISTINGS} aria-valuenow={used}>
+            <div className="progress-fill" style={{ width: `${(used / FREE_LISTINGS) * 100}%` }} />
+          </div>
+        </div>
+      ) : (
+        <p className="caption">
+          <strong>The first {FREE_LISTINGS} places post free.</strong>
+        </p>
+      )}
+      <p className="caption muted">
+        After that it’s $1, one time.{' '}
+        <Link to="/pricing" className="text-link">
+          Pricing
+        </Link>
+      </p>
     </div>
   )
 }

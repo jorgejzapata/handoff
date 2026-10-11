@@ -2,6 +2,7 @@ import {
   Timestamp,
   collection,
   collectionGroup,
+  deleteDoc,
   doc,
   getCountFromServer,
   getDoc,
@@ -10,6 +11,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
   where,
   writeBatch,
 } from 'firebase/firestore'
@@ -88,7 +90,12 @@ export async function fetchAdminData() {
     createdAt: toDate(d.data().createdAt),
   }))
   const suspensions: Suspension[] = suspSnap.docs.map((d) => ({ uid: d.id, reason: d.data().reason, at: toDate(d.data().at) }))
-  return { listings, users, reports, suspensions }
+  // Internal accounts (Jorge and test accounts). Read on its own so admin
+  // still loads if the rules for it aren't deployed yet.
+  const internal = await getDocs(collection(db, 'internal'))
+    .then((snap) => new Set(snap.docs.map((d) => d.id)))
+    .catch(() => new Set<string>())
+  return { listings, users, reports, suspensions, internal }
 }
 
 export async function fetchViews7d() {
@@ -102,9 +109,17 @@ export async function fetchViews7d() {
   }
 }
 
+// Marks an account as internal, so its listings never count toward the free
+// spots or the boost gate (functions/src/stats.ts recounts right away).
+export async function setInternal(adminId: string, uid: string, on: boolean) {
+  const ref = doc(db, 'internal', uid)
+  if (on) await setDoc(ref, { by: adminId, at: serverTimestamp() })
+  else await deleteDoc(ref)
+}
+
 // ---- Metrics for the phase triggers in the monetization brief ----
 
-export const GOALS = { activeListings: 50, filledPct: 30, boostConversionPct: 5, boostGate: 15 }
+export const GOALS = { activeListings: 50, filledPct: 30, boostConversionPct: 5, boostGate: 25, freeListings: 50 }
 
 const DAY = 24 * 60 * 60 * 1000
 

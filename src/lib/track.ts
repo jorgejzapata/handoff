@@ -39,6 +39,10 @@ export type EventName =
   | 'boost_checkout_started'
   | 'boost_purchased'
   | 'boost_failed'
+  | 'listing_fee_viewed'
+  | 'listing_fee_checkout_started'
+  | 'listing_fee_paid'
+  | 'listing_fee_failed'
   // Outcome and trust
   | 'listing_filled'
   | 'report_submitted'
@@ -73,6 +77,7 @@ const SCREENS: [RegExp, string][] = [
   [/^\/listings\/?$/, 'browse'],
   [/^\/listings\/[^/]+$/, 'listing_detail'],
   [/^\/post\/live\//, 'post_live'],
+  [/^\/post\/checkout\//, 'listing_fee'],
   [/^\/post/, 'post'],
   [/^\/messages\/?$/, 'messages'],
   [/^\/messages\/[^/]+$/, 'thread'],
@@ -88,6 +93,7 @@ const SCREENS: [RegExp, string][] = [
   [/^\/confirm-email/, 'confirm_email'],
   [/^\/onboarding/, 'profile_setup'],
   [/^\/admin/, 'admin'],
+  [/^\/pricing/, 'pricing'],
   [/^\/(terms|privacy|safety|support|delete-account)/, 'legal'],
 ]
 
