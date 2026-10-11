@@ -13,16 +13,21 @@ import { STRIPE_SECRET_KEY, stripe } from './stripe.js'
 // its own while config/pricing.listingFee is 'stripe' and the free spots are
 // gone.
 //
-// Switch: config/pricing { listingFee: 'off' | 'test' | 'stripe' }, set in the
-// Firebase console. Missing = 'off' in prod, 'test' (no real checkout) on dev.
+// Switches, set in the Firebase console (no redeploy):
+//   config/pricing.listingFee    'off' | 'test' | 'stripe'  (missing = off)
+//   config/pricing.freeListings  free spots before the fee  (missing = 50)
+// On dev, freeListings: 0 lets you test a real Stripe payment right away.
 
 export const LISTING_FEE_CENTS = 100
 const LIFETIME_DAYS = 90
 const DAY = 24 * 60 * 60 * 1000
 
-async function feeMode() {
-  const v = (await getFirestore().doc('config/pricing').get()).get('listingFee')
-  return v === 'stripe' || v === 'test' ? v : 'off'
+// config/pricing: { listingFee: 'off' | 'test' | 'stripe', freeListings?: number }
+async function pricing() {
+  const d = (await getFirestore().doc('config/pricing').get()).data() ?? {}
+  const mode = d.listingFee === 'stripe' || d.listingFee === 'test' ? d.listingFee : 'off'
+  const free = typeof d.freeListings === 'number' && d.freeListings >= 0 ? d.freeListings : FREE_LISTINGS
+  return { mode, free }
 }
 
 // Same checks as publishable() in firestore.rules: the webhook publishes with
@@ -70,7 +75,8 @@ export const createListingCheckout = onCall(
     if (!publishable(listing))
       throw new HttpsError('failed-precondition', 'Something is missing. Check each step, then try again.')
 
-    if ((await feeMode()) !== 'stripe' || (await publishedCount()) < FREE_LISTINGS) return { free: true }
+    const { mode, free } = await pricing()
+    if (mode !== 'stripe' || (await publishedCount()) < free) return { free: true }
 
     const order = db.collection('listingOrders').doc()
     const meta = { kind: 'listing', orderId: order.id, listingId, uid }

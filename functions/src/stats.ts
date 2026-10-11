@@ -17,7 +17,8 @@ import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 // to free. The one exception: marking an account internal recounts from
 // scratch, so test listings made before it was marked drop out.
 
-// Keep in sync with src/lib/pricing.ts.
+// Default free spots; config/pricing.freeListings overrides it. Keep the
+// default in sync with src/lib/pricing.ts and firestore.rules.
 export const FREE_LISTINGS = 50
 
 export async function internalUids() {
@@ -50,7 +51,7 @@ async function writeStats({ fresh }: { fresh: boolean }) {
     const prev = (await tx.get(ref)).data()
     const published = fresh ? next.published : Math.max(prev?.published ?? 0, next.published)
     if (prev && prev.published === published && prev.live === next.live) return
-    tx.set(ref, { published, live: next.live, freeListings: FREE_LISTINGS, updatedAt: FieldValue.serverTimestamp() })
+    tx.set(ref, { published, live: next.live, updatedAt: FieldValue.serverTimestamp() })
   })
   return next
 }

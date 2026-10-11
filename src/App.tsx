@@ -26,6 +26,7 @@ import Browse from './screens/Browse'
 import ListingDetail from './screens/ListingDetail'
 import PostListing from './screens/post/PostListing'
 import PostLive from './screens/post/PostLive'
+import { ListingFeeResult } from './screens/post/ListingFee'
 import ProfileSetup from './screens/ProfileSetup'
 import Verify, { ConfirmEmail, Verified } from './screens/Verify'
 import Me from './screens/Me'
@@ -219,6 +220,7 @@ export default function App() {
           <Route path="verified" element={<Verified />} />
           <Route path="confirm-email" element={<ConfirmEmail />} />
           <Route path="post/live/:id" element={<PostLive />} />
+          <Route path="post/paid" element={<ListingFeeResult />} />
           <Route path="onboarding" element={<ProfileSetup />} />
           <Route path="admin" element={<AdminGate />} />
           <Route path="boost/success" element={<BoostResult />} />

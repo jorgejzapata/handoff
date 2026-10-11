@@ -32,6 +32,7 @@ import {
   useListingStats,
 } from '../../lib/pricing'
 import { ListingFeeBody, TestCheckoutSheet } from './ListingFee'
+import { stampLister, startListingCheckout } from '../../lib/listingFee'
 
 // Post a listing: six short steps and a preview. No account needed until
 // Publish; the draft autosaves to Firestore under an anonymous account.
@@ -66,8 +67,11 @@ export default function PostListing() {
   const [checkout, setCheckout] = useState(false)
   const [testPay, setTestPay] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
+  const [payNote, setPayNote] = useState<string | null>(null)
+  const [opening, setOpening] = useState(false)
   const [params, setParams] = useSearchParams()
   const resumeCheckout = params.get('checkout') === '1'
+  const cameBackCancelled = params.get('cancelled') === '1'
   const stats = useListingStats()
 
   const pending = useRef<ListingDraft>({})
@@ -101,7 +105,8 @@ export default function PostListing() {
         setPhase('editing')
         setStep(PREVIEW)
         setCheckout(true)
-        track('listing_fee_viewed', { listing_id: pointer, from: 'signup' })
+        if (cameBackCancelled) setPayNote('Checkout closed. No charge was made, and your draft is saved.')
+        track('listing_fee_viewed', { listing_id: pointer, from: cameBackCancelled ? 'checkout_cancel' : 'signup' })
       } else if (notice || resumeCheckout) {
         if (notice) toast(notice)
         setPhase('editing')
@@ -110,7 +115,15 @@ export default function PostListing() {
         setPhase('resume')
       }
     })
-  }, [authLoading, rawUser, phase, toast, resumeCheckout, setParams])
+  }, [authLoading, rawUser, phase, toast, resumeCheckout, cameBackCancelled, setParams])
+
+  // Coming back from Stripe with the browser's Back button restores this page
+  // as it was; un-stick the "Opening checkout…" button.
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => e.persisted && setOpening(false)
+    window.addEventListener('pageshow', onShow)
+    return () => window.removeEventListener('pageshow', onShow)
+  }, [])
 
   // ---- Autosave ----
   const ensureDraft = useCallback(async () => {
@@ -178,6 +191,7 @@ export default function PostListing() {
   function go(next: number) {
     setCheckout(false)
     setPayError(null)
+    setPayNote(null)
     void flush()
     if (next > step) track('post_step_completed', { step: step + 1 })
     setStep(Math.max(0, Math.min(PREVIEW, next)))
@@ -237,13 +251,40 @@ export default function PostListing() {
     }
   }
 
-  function pay() {
+  async function pay() {
     const id = idRef.current
-    if (!id) return
+    if (!id || opening) return
     setPayError(null)
+    setPayNote(null)
     track('listing_fee_checkout_started', { listing_id: id, value: LISTING_FEE_CENTS / 100, currency: 'USD' })
-    // Stripe Checkout goes here next ('stripe' mode). Until then: the test sheet.
-    setTestPay(true)
+    if (stats?.checkout !== 'stripe') {
+      setTestPay(true)
+      return
+    }
+    setOpening(true)
+    try {
+      await flush()
+      // The webhook publishes the draft as it stands, lister card included.
+      await stampLister(id, lister())
+      const res = await startListingCheckout(id)
+      if (res.free) {
+        // The server says no fee is due after all (spots freed, or fee off).
+        await goLive(id)
+        return
+      }
+      if (!res.url) throw new Error('No checkout URL')
+      window.location.assign(res.url)
+    } catch (e) {
+      console.error('[handoff] listing checkout', e)
+      const msg = (e as { message?: string }).message
+      track('listing_fee_failed', { listing_id: id, step: 'checkout_create' })
+      setPayError(
+        msg && !/internal|No checkout URL/i.test(msg)
+          ? msg
+          : 'Checkout didn’t open. Nothing was charged. Try again in a minute.',
+      )
+      setOpening(false)
+    }
   }
 
   async function paidThenPublish() {
@@ -317,6 +358,9 @@ export default function PostListing() {
             listing={draftToPreview(draft, { firstName: user?.displayName || 'You', since: listerSince() })}
             expiresAt={(draft.availableTo ? computeExpiry(draft.availableTo) : null)?.toDate() ?? new Date()}
             error={payError}
+            note={payNote}
+            mode={stats?.checkout ?? 'test'}
+            freeSpots={stats?.free ?? 50}
           />
         </main>
       ) : isPreview ? (
@@ -395,8 +439,8 @@ export default function PostListing() {
           Back
         </button>
         {isPreview && checkout ? (
-          <button type="button" className="btn btn-accent" onClick={pay} disabled={testPay}>
-            Pay {fee} and publish
+          <button type="button" className="btn btn-accent" onClick={pay} disabled={testPay || opening}>
+            {opening ? 'Opening checkout…' : `Pay ${fee} and publish`}
           </button>
         ) : isPreview ? (
           <button
