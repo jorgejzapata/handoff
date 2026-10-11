@@ -15,6 +15,7 @@ import { recordView } from '../lib/views'
 import { fetchListing } from '../lib/listings'
 import type { Listing } from '../lib/listings'
 import { formatDates, formatRent, formatShortDate } from '../lib/format'
+import { listingParams, track, withShareUtm } from '../lib/track'
 
 export default function ListingDetail() {
   const { id } = useParams()
@@ -40,6 +41,7 @@ export default function ListingDetail() {
   useEffect(() => {
     if (authLoading || !listing || listing.status !== 'active') return
     void recordView(listing.id, listing.ownerId, rawUser?.uid)
+    if (rawUser?.uid !== listing.ownerId) track('listing_viewed', listingParams(listing))
   }, [authLoading, listing, rawUser?.uid])
 
   if (listing === undefined) return <div className="detail detail-loading" aria-busy="true" />
@@ -62,7 +64,7 @@ export default function ListingDetail() {
   const report = () => (member ? setSheet('report') : open({ reason: 'login' }))
 
   async function share() {
-    const url = `${window.location.origin}/listings/${listing!.id}`
+    const url = withShareUtm(`/listings/${listing!.id}`)
     const text = `${formatRent(listing!.rentCents)} / mo · ${listing!.title} · ${formatDates(listing!.availableFrom, listing!.availableTo)}`
     try {
       if (navigator.share) await navigator.share({ title: listing!.title, text, url })
@@ -70,6 +72,7 @@ export default function ListingDetail() {
         await navigator.clipboard.writeText(url)
         toast('Link copied')
       }
+      track('share', { content_type: 'listing', item_id: listing!.id, method: typeof navigator.share === 'function' ? 'share_sheet' : 'copy', from: 'listing_detail' })
     } catch {
       /* share sheet dismissed */
     }

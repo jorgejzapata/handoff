@@ -1,10 +1,11 @@
+import { useEffect } from 'react'
 import Terms from './screens/legal/Terms'
 import Privacy from './screens/legal/Privacy'
 import Safety from './screens/legal/Safety'
 import Support from './screens/legal/Support'
 import Saved from './screens/Saved'
 import { SavedProvider } from './components/SavedProvider'
-import { Link, Outlet, Route, Routes } from 'react-router'
+import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
 import { BottomNav, TopBar } from './components/Shell'
 import { SignUpProvider } from './components/SignUpSheet'
 import { AuthProvider } from './components/AuthProvider'
@@ -28,6 +29,7 @@ import ProfileSetup from './screens/ProfileSetup'
 import Verify, { ConfirmEmail, Verified } from './screens/Verify'
 import Me from './screens/Me'
 import { usingEmulators } from './lib/firebase'
+import { trackScreen } from './lib/track'
 
 if (usingEmulators) console.info('[handoff] Firebase is using the local emulators')
 
@@ -111,9 +113,20 @@ function NotFound() {
   )
 }
 
+// One screen_view per route, with a clean screen name. The post wizard sends
+// its own per-step views.
+function ScreenTracker() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    if (!pathname.startsWith('/post') || pathname.startsWith('/post/live')) trackScreen(pathname)
+  }, [pathname])
+  return null
+}
+
 export default function App() {
   return (
     <AuthProvider>
+      <ScreenTracker />
       <ToastProvider>
         <InboxProvider>
         <SavedProvider>

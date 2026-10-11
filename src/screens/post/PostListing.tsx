@@ -20,6 +20,7 @@ import {
 import type { ListingDraft } from '../../lib/listings'
 import { clearListingsCache } from '../../lib/useListings'
 import { StepLease, StepLocation, StepOffering, StepPhotos, StepPlace, StepRentDates, stepValid } from './PostSteps'
+import { track, trackScreen } from '../../lib/track'
 
 // Post a listing: six short steps and a preview. No account needed until
 // Publish; the draft autosaves to Firestore under an anonymous account.
@@ -145,8 +146,13 @@ export default function PostListing() {
     }
   }, [flush])
 
+  useEffect(() => {
+    trackScreen('/post', step + 1)
+  }, [step])
+
   function go(next: number) {
     void flush()
+    if (next > step) track('post_step_completed', { step: step + 1 })
     setStep(Math.max(0, Math.min(PREVIEW, next)))
     window.scrollTo({ top: 0 })
   }

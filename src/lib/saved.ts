@@ -13,6 +13,7 @@ import {
 import { db } from './firebase'
 import { fetchListing } from './listings'
 import type { Listing } from './listings'
+import { track, listingParams } from './track'
 
 // Saving a place writes two docs in one batch:
 //   users/{uid}/saved/{listingId}   the student's list, with a small snapshot
@@ -73,6 +74,7 @@ export async function saveListing(uid: string, l: Listing) {
   batch.set(doc(db, 'users', uid, 'saved', l.id), snapshotOf(l))
   batch.set(doc(db, 'listings', l.id, 'saves', uid), { at: serverTimestamp() })
   await batch.commit()
+  track('listing_saved', listingParams(l))
 }
 
 export async function unsaveListing(uid: string, listingId: string) {

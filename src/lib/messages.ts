@@ -19,6 +19,7 @@ import { db } from './firebase'
 import type { Listing, PrivateLocation } from './listings'
 import { fetchProfile } from './users'
 import type { Attachment } from './attachments'
+import { track, listingParams } from './track'
 
 // ---- Model (conversations collection in the MVP spec) ----
 
@@ -188,6 +189,8 @@ export async function startConversation(listing: Listing, seeker: User, text: st
   })
   batch.set(msgRef, { senderId: seeker.uid, text: clean, sentAt: serverTimestamp(), type: 'text' })
   await batch.commit()
+  track('first_message_sent', listingParams(listing))
+  track('message_sent', { type: 'text', first: true })
   return id
 }
 
@@ -226,6 +229,7 @@ export async function sendMessage(
     updatedAt: serverTimestamp(),
   })
   await batch.commit()
+  track(type === 'address' ? 'address_shared' : 'message_sent', { type, listing_id: c.listingId, role: c.listerId === me ? 'lister' : 'seeker' })
 }
 
 export function formatAddress(loc: PrivateLocation) {
@@ -248,6 +252,7 @@ export async function blockPerson(c: Conversation, me: string) {
   batch.set(doc(db, 'users', me, 'blocks', other.id), { createdAt: serverTimestamp(), firstName: other.firstName })
   batch.update(doc(db, 'conversations', c.id), { blockedBy: me })
   await batch.commit()
+  track('user_blocked', { listing_id: c.listingId })
 }
 
 // Closes every open thread on a listing and posts the system line in each.

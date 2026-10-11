@@ -17,6 +17,7 @@ import type { Gender } from '../lib/gender'
 import { savePending, useAuth } from './AuthProvider'
 import type { PendingAction } from './AuthProvider'
 import { useFinishPending } from './useFinishPending'
+import { track } from '../lib/track'
 
 // The sign-up sheet opens only at the moment of intent: Say hi, Save or Publish.
 
@@ -54,6 +55,7 @@ export function SignUpProvider({ children }: { children: ReactNode }) {
   const open = useCallback(
     (a: OpenArgs) => {
       if (member) return
+      track('signup_sheet_opened', { trigger: a.reason })
       savePending({
         reason: a.reason,
         listerName: a.listerName,

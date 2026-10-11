@@ -8,6 +8,7 @@ import { fetchListing } from '../../lib/listings'
 import type { Listing } from '../../lib/listings'
 import { fetchProfile } from '../../lib/users'
 import { formatDates, formatRent } from '../../lib/format'
+import { track, withShareUtm } from '../../lib/track'
 
 // "You're live!" after Publish. First-time listers see profile setup first.
 export default function PostLive() {
@@ -28,12 +29,13 @@ export default function PostLive() {
     })
   }, [loading, user, id, navigate])
 
-  const url = `${window.location.origin}/listings/${id}`
+  const url = withShareUtm(`/listings/${id}`, 'publish_success')
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(url)
       toast('Link copied')
+      track('share', { content_type: 'listing', item_id: id, method: 'copy', from: 'publish_success' })
     } catch {
       toast(url)
     }
@@ -47,6 +49,7 @@ export default function PostLive() {
         text: `${formatRent(listing.rentCents)} / mo · ${listing.title} · ${formatDates(listing.availableFrom, listing.availableTo)}`,
         url,
       })
+      track('share', { content_type: 'listing', item_id: id, method: 'share_sheet', from: 'publish_success' })
     } catch {
       /* dismissed */
     }

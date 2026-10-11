@@ -16,6 +16,7 @@ import { closeThreadsForListing } from '../lib/messages'
 import { setDraftPointer } from '../lib/draftCarry'
 import { clearListingsCache } from '../lib/useListings'
 import { formatDates, formatRent, formatShortDate } from '../lib/format'
+import { track, withShareUtm } from '../lib/track'
 
 type Tab = 'live' | 'drafts' | 'past'
 
@@ -100,13 +101,14 @@ export default function MyListings() {
   }
 
   async function share(l: Listing) {
-    const url = `${window.location.origin}/listings/${l.id}`
+    const url = withShareUtm(`/listings/${l.id}`)
     try {
       if (navigator.share) await navigator.share({ title: l.title, url })
       else {
         await navigator.clipboard.writeText(url)
         toast('Link copied')
       }
+      track('share', { content_type: 'listing', item_id: l.id, method: typeof navigator.share === 'function' ? 'share_sheet' : 'copy', from: 'my_listings' })
     } catch {
       /* dismissed */
     }

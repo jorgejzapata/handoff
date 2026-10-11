@@ -1,5 +1,6 @@
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from './firebase'
+import { track } from './track'
 
 export type ReportTarget = 'listing' | 'user' | 'message'
 export type ReportReason = 'scam' | 'money-before-viewing' | 'fake' | 'unavailable' | 'offensive' | 'other'
@@ -23,4 +24,5 @@ export async function submitReport(reporterId: string, targetType: ReportTarget,
     status: 'open',
     createdAt: serverTimestamp(),
   })
+  track('report_submitted', { target_type: targetType, reason })
 }

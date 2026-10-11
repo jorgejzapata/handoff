@@ -2,6 +2,7 @@ import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import type { Timestamp } from 'firebase/firestore'
 import { db } from './firebase'
 import { updateListerOnListings } from './listings'
+import { track } from './track'
 
 export interface Profile {
   firstName: string
@@ -44,6 +45,7 @@ export async function markVerified(uid: string) {
     const p = await fetchProfile(uid)
     if (!p || p.verifiedAt) return
     await updateDoc(doc(db, 'users', uid), { verifiedAt: serverTimestamp() })
+    track('school_email_verified')
     await updateListerOnListings(uid, { verified: true }).catch(() => {})
   } catch (e) {
     marked.delete(uid)

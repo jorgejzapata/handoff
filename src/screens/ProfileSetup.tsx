@@ -11,6 +11,7 @@ import { updateListerOnListings } from '../lib/listings'
 import { GENDERS, GENDER_SELF_MAX, invalidateMyGroup } from '../lib/gender'
 import { birthYearOptions, isAdultBirthYear } from '../lib/auth'
 import type { Gender } from '../lib/gender'
+import { track } from '../lib/track'
 
 // "Add a face to your name". Shown once, after a first listing goes live
 // (and later after a first message). Every field is optional.
@@ -84,6 +85,7 @@ export default function ProfileSetup() {
           ...(needsBirthYear && isAdultBirthYear(Number(birthYear)) ? { birthYear: Number(birthYear) } : {}),
           onboardingStep: 'done',
         })
+        track('profile_completed', { photo: !!photoUrl, year: !!year, bio: !!bio.trim() })
         invalidateMyGroup()
         if (photoUrl) {
           await updateProfile(user, { photoURL: photoUrl })

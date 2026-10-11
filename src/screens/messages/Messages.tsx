@@ -8,6 +8,7 @@ import { otherPerson } from '../../lib/messages'
 import type { Conversation } from '../../lib/messages'
 import { useActiveListings } from '../../lib/useListings'
 import { Thread } from './Thread'
+import { track, withShareUtm } from '../../lib/track'
 
 type Filter = 'all' | 'mine' | 'asked'
 
@@ -101,8 +102,9 @@ function Inbox({ activeId }: { activeId?: string }) {
               type="button"
               className="btn btn-secondary"
               onClick={async () => {
-                await navigator.clipboard.writeText(`${window.location.origin}/listings/${myLive.id}`).catch(() => {})
+                await navigator.clipboard.writeText(withShareUtm(`/listings/${myLive.id}`)).catch(() => {})
                 toast('Link copied')
+                track('share', { content_type: 'listing', item_id: myLive.id, method: 'copy', from: 'messages_empty' })
               }}
             >
               Copy link

@@ -18,6 +18,7 @@ import type { DocumentData, DocumentSnapshot } from 'firebase/firestore'
 import { db } from './firebase'
 import { MARKET_ID } from '../config'
 import type { Group } from './gender'
+import { track } from './track'
 
 // ---- Model ----
 // Field names follow the listings collection in the MVP Product Spec.
@@ -357,6 +358,7 @@ export async function createDraft(uid: string, draft: ListingDraft) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+  track('post_started', { listing_type: draft.listingType })
   return ref.id
 }
 
@@ -390,6 +392,14 @@ export async function publishListing(id: string, draft: ListingDraft, lister: Li
     listerYear: lister.year ?? null,
     listerSince: lister.since,
     listerVerified: lister.verified === true,
+  })
+  track('listing_published', {
+    listing_id: id,
+    listing_type: draft.listingType,
+    rent_usd: draft.rentCents ? Math.round(draft.rentCents / 100) : undefined,
+    photos: draft.photos?.length,
+    landlord_status: draft.landlordStatus,
+    lister_verified: lister.verified === true,
   })
 }
 
@@ -441,6 +451,7 @@ export async function markListingFilled(id: string, viaHandoff: boolean) {
     filledViaHandoff: viaHandoff,
     updatedAt: serverTimestamp(),
   })
+  track('listing_filled', { listing_id: id, via_handoff: viaHandoff })
 }
 
 export async function takeListingDown(id: string) {
@@ -482,6 +493,7 @@ export async function saveListingEdits(id: string, changes: ListingDraft, availa
   const patch: DocumentData = { ...draftToFirestore(changes), updatedAt: serverTimestamp() }
   if ((resetExpiry || changes.availableFrom || changes.availableTo) && availableTo) patch.expiresAt = computeExpiry(availableTo)
   await updateDoc(doc(db, 'listings', id), patch)
+  track('listing_edited', { listing_id: id })
 }
 
 // "Still available?" -> Keep it up: another 3 months (or to move-out).
@@ -498,6 +510,7 @@ export async function relistListing(id: string, changes: ListingDraft, available
     expiresAt: computeExpiry(availableTo),
     updatedAt: serverTimestamp(),
   })
+  track('listing_relisted', { listing_id: id })
 }
 
 // Deletes the listing, its private address and its photos. Chats stay.

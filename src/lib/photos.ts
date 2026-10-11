@@ -1,6 +1,7 @@
 import { deleteObject, getDownloadURL, ref, uploadBytes, uploadBytesResumable } from 'firebase/storage'
 import { storage } from './firebase'
 import type { Photo } from './listings'
+import { track } from './track'
 
 // Photos are resized in the browser before upload, so big phone photos never
 // fail for size and listings load fast. Storage paths include the owner's uid,
@@ -76,6 +77,7 @@ export async function uploadListingPhoto(
   await uploadBytes(ref(storage, thumbPath), thumb.blob, meta)
 
   const [url, thumbUrl] = await Promise.all([getDownloadURL(ref(storage, path)), getDownloadURL(ref(storage, thumbPath))])
+  track('photo_uploaded', { listing_id: listingId })
   return { id, path, url, thumbUrl, width: full.width, height: full.height }
 }
 

@@ -16,6 +16,7 @@ import { httpsCallable } from 'firebase/functions'
 import { auth, db, functions, usingEmulators } from './firebase'
 import { MARKET_ID } from '../config'
 import { captureAnonDraft, restoreDraft } from './draftCarry'
+import { track } from './track'
 
 // Anyone 18+ can join with any email. A school email (any domain ending in
 // one of these, so name@school.edu and name@mail.school.edu both count) can
@@ -123,6 +124,7 @@ export async function signUpWithEmail(firstName: string, email: string, password
   await user.getIdToken(true) // so rules see the real account, not the anonymous one
   // The profile doc is retried on next sign-in if this fails, so it never blocks signup.
   await ensureUserDoc(user, firstName.trim(), details).catch((e) => console.error('[handoff] users doc', e))
+  track('sign_up', { method: 'email', school_email: isStudentEmail(cleanEmail) })
   return user
 }
 
@@ -132,6 +134,7 @@ export async function logInWithEmail(email: string, password: string) {
   const carry = await captureAnonDraft()
   const { user } = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password)
   await restoreDraft(carry, user.uid)
+  track('login', { method: 'email' })
   await ensureUserDoc(user, user.displayName ?? 'Student').catch((e) => console.error('[handoff] users doc', e))
   return user
 }

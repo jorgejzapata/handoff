@@ -5,6 +5,7 @@ import type { User } from 'firebase/auth'
 import { auth } from '../lib/firebase'
 import { isMember, isVerifiedStudent } from '../lib/auth'
 import { fetchProfile, markVerified } from '../lib/users'
+import { ageBracket, identify } from '../lib/track'
 
 // What they were doing when the sign-up sheet opened, so signing up or
 // logging in puts them right back there (sends the message, publishes, saves).
@@ -83,6 +84,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!uid || !verifiedNow) return
     void markVerified(uid)
+  }, [uid, verifiedNow])
+
+  // GA4 user ID is the Firebase UID; properties come from our own data.
+  useEffect(() => {
+    if (!uid) return identify(null)
+    let live = true
+    fetchProfile(uid)
+      .then((p) => {
+        if (!live) return
+        identify(uid, {
+          verified: verifiedNow,
+          class_year: p?.gradYear,
+          age_bracket: ageBracket(p?.birthYear),
+          gender: p?.gender && p.gender !== 'self' ? p.gender : undefined,
+        })
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
   }, [uid, verifiedNow])
 
   // The auth profile usually has the photo; fall back to the users doc.

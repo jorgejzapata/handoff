@@ -16,6 +16,7 @@ import { formatDates } from '../lib/format'
 import { useActiveListings } from '../lib/useListings'
 import { saveLastSearch } from '../lib/lastSearch'
 import { GROUPS, useMyGroup } from '../lib/gender'
+import { track } from '../lib/track'
 
 type Sort = 'recommended' | 'newest' | 'price-asc' | 'price-desc'
 
@@ -56,10 +57,12 @@ export default function Browse() {
     if (value === null) next.delete(key)
     else next.set(key, value)
     setParams(next, { replace: true })
+    if (key !== 'view' && key !== 'sort') track('filter_applied', filterParams(readFilters(next)))
   }
 
   function apply(f: Filters) {
     setParams(writeFilters(params, f), { replace: true })
+    track('filter_applied', filterParams(f))
   }
 
   function clearAll() {
@@ -254,6 +257,19 @@ function FilterSheet({
       </div>
     </Sheet>
   )
+}
+
+// Which filters are on, never the dates themselves.
+function filterParams(f: Filters) {
+  return {
+    filters: activeCount(f),
+    dates: !!(f.from || f.to),
+    max_usd: f.max,
+    type: f.type,
+    beds: f.beds,
+    furnished: f.furnished,
+    distance_mi: f.dist,
+  }
 }
 
 function Chip({ on, label, icon, onClick }: { on: boolean; label: string; icon?: ReactNode; onClick: () => void }) {
