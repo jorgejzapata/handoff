@@ -300,7 +300,9 @@ input[type='date'].input::-webkit-calendar-picker-indicator { display: none; }
   aspect-ratio: 4 / 3; background: var(--sage-100);
 }
 .gallery-track::-webkit-scrollbar { display: none; }
-.gallery-img { flex: 0 0 100%; width: 100%; height: 100%; object-fit: cover; scroll-snap-align: start; }
+.gallery-slide { flex: 0 0 100%; height: 100%; padding: 0; border: 0; background: none; scroll-snap-align: start; cursor: zoom-in; }
+.gallery-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gallery-track:focus-visible { outline: 2px solid var(--forest-600); outline-offset: -4px; }
 .gallery-edit { position: absolute; left: var(--space-4); bottom: 12px; }
 .gallery-edit .edit-link { background: var(--surface); padding: 2px 12px; border-radius: var(--radius-pill); text-decoration: none; }
 .gallery-bar {
@@ -310,8 +312,65 @@ input[type='date'].input::-webkit-calendar-picker-indicator { display: none; }
 }
 .gallery-count {
   position: absolute; right: var(--space-4); bottom: 12px;
-  padding: 2px 10px; border-radius: var(--radius-pill);
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 32px; padding: 0 12px; border-radius: var(--radius-pill);
   background: var(--surface); color: var(--ink); font: 500 12px/18px var(--font-body);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
+}
+.gallery-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--ink);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+}
+.gallery-prev { left: 12px; }
+.gallery-next { right: 12px; }
+.gallery-dots { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; gap: 6px; pointer-events: none; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: rgb(255 255 255 / 0.6); box-shadow: 0 0 2px rgb(0 0 0 / 0.4); }
+.dot-on { background: #fff; width: 8px; height: 8px; margin-top: -1px; }
+
+/* Full-screen photo viewer */
+.viewer {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column;
+  background: #0E1411; color: #ECF0E6;
+  animation: fade-in 0.15s ease;
+}
+.viewer-bar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: calc(8px + env(safe-area-inset-top)) var(--space-4) 8px;
+}
+.viewer-count { font: 500 14px/20px var(--font-body); }
+.viewer-close { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: inherit; }
+.viewer-stage { position: relative; flex: 1; min-height: 0; touch-action: pan-y; }
+.viewer-img {
+  position: absolute; inset: 0; margin: auto;
+  max-width: 100%; max-height: 100%; object-fit: contain;
+}
+@media (min-width: 640px) { .viewer-img { max-width: calc(100% - 144px); border-radius: var(--radius-md); } }
+.viewer-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%;
+  background: rgb(255 255 255 / 0.12); color: inherit;
+}
+.viewer-arrow:hover { background: rgb(255 255 255 / 0.2); }
+.viewer-prev { left: 12px; }
+.viewer-next { right: 12px; }
+.viewer-strip {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  padding: 12px var(--space-4) calc(12px + env(safe-area-inset-bottom));
+}
+.viewer-strip::-webkit-scrollbar { display: none; }
+.viewer-thumb { flex: none; width: 64px; height: 48px; padding: 0; border-radius: 8px; overflow: hidden; opacity: 0.55; outline: 2px solid transparent; }
+.viewer-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.viewer-thumb-on { opacity: 1; outline-color: var(--lime-300); outline-offset: 2px; }
+@media (max-width: 639px) { .viewer-arrow { display: none; } .gallery-arrow { width: 36px; height: 36px; } }
+
+/* House marker at the center of the approximate-area circle */
+.map-home {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--primary); color: var(--on-primary);
+  box-shadow: 0 0 0 3px var(--surface), 0 2px 6px rgb(0 0 0 / 0.25);
 }
 .detail-layout { max-width: 1120px; margin: 0 auto; padding: 0 var(--space-4); }
 .detail-main { display: flex; flex-direction: column; gap: var(--space-6); padding-top: 20px; }

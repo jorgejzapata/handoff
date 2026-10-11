@@ -1,8 +1,8 @@
 import { maskBlockedLanguage } from '../lib/moderation'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
-import { Bath, BedDouble, BadgeCheck, CircleCheck, CircleHelp, Clock, ImageIcon, Info, Sofa, Users, Zap } from 'lucide-react'
+import { Bath, BedDouble, BadgeCheck, ChevronLeft, ChevronRight, CircleCheck, CircleHelp, Clock, ImageIcon, Images, Info, Sofa, Users, X, Zap } from 'lucide-react'
 import type { Listing } from '../lib/listings'
 import { householdLabel, openToLabel } from '../lib/gender'
 import { AREA_RADIUS_M, LazyMap } from './map/LazyMap'
@@ -196,6 +196,7 @@ export function ListingView({
 
 function Gallery({ photos, title }: { photos: Listing['photos']; title: string }) {
   const [index, setIndex] = useState(0)
+  const [viewer, setViewer] = useState<number | null>(null)
   const track = useRef<HTMLDivElement>(null)
 
   if (!photos.length) {
@@ -208,32 +209,157 @@ function Gallery({ photos, title }: { photos: Listing['photos']; title: string }
     )
   }
 
+  const many = photos.length > 1
+  function go(i: number) {
+    const el = track.current
+    if (!el) return
+    const next = (i + photos.length) % photos.length
+    el.scrollTo({ left: next * el.clientWidth, behavior: 'smooth' })
+  }
+
   return (
     <div className="gallery">
       <div
         className="gallery-track"
         ref={track}
+        tabIndex={0}
+        aria-label={`Photos of ${title}`}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowRight') go(index + 1)
+          if (e.key === 'ArrowLeft') go(index - 1)
+        }}
         onScroll={(e) => {
           const el = e.currentTarget
           setIndex(Math.round(el.scrollLeft / el.clientWidth))
         }}
       >
         {photos.map((p, i) => (
-          <img
-            key={p.id}
-            src={p.url}
-            alt={`${title}, photo ${i + 1} of ${photos.length}`}
-            className="gallery-img"
-            width={p.width}
-            height={p.height}
-            loading={i === 0 ? 'eager' : 'lazy'}
-          />
+          <button key={p.id} type="button" className="gallery-slide" onClick={() => setViewer(i)} aria-label={`Open photo ${i + 1} of ${photos.length}`}>
+            <img
+              src={p.url}
+              alt={`${title}, photo ${i + 1} of ${photos.length}`}
+              className="gallery-img"
+              width={p.width}
+              height={p.height}
+              loading={i === 0 ? 'eager' : 'lazy'}
+            />
+          </button>
         ))}
       </div>
-      {photos.length > 1 && (
-        <span className="gallery-count">
-          {index + 1} / {photos.length}
+      {many && (
+        <>
+          <button type="button" className="gallery-arrow gallery-prev" aria-label="Previous photo" onClick={() => go(index - 1)}>
+            <ChevronLeft size={20} strokeWidth={2} />
+          </button>
+          <button type="button" className="gallery-arrow gallery-next" aria-label="Next photo" onClick={() => go(index + 1)}>
+            <ChevronRight size={20} strokeWidth={2} />
+          </button>
+          <div className="gallery-dots" aria-hidden="true">
+            {photos.slice(0, 10).map((p, i) => (
+              <span key={p.id} className={i === index ? 'dot dot-on' : 'dot'} />
+            ))}
+          </div>
+        </>
+      )}
+      <button type="button" className="gallery-count" onClick={() => setViewer(index)}>
+        <Images size={14} strokeWidth={2} aria-hidden="true" />
+        {many ? `${index + 1} / ${photos.length}` : 'View photo'}
+      </button>
+      {viewer !== null && (
+        <PhotoViewer photos={photos} title={title} start={viewer} onClose={(last) => {
+          setViewer(null)
+          go(last)
+        }} />
+      )}
+    </div>
+  )
+}
+
+// Full-screen photos: swipe, arrows or keyboard, with a thumbnail strip.
+function PhotoViewer({
+  photos,
+  title,
+  start,
+  onClose,
+}: {
+  photos: Listing['photos']
+  title: string
+  start: number
+  onClose: (index: number) => void
+}) {
+  const [i, setI] = useState(start)
+  const strip = useRef<HTMLDivElement>(null)
+  const touch = useRef<number | null>(null)
+  const n = photos.length
+  const prev = () => setI((x) => (x - 1 + n) % n)
+  const next = () => setI((x) => (x + 1) % n)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose(i)
+      if (e.key === 'ArrowRight') next()
+      if (e.key === 'ArrowLeft') prev()
+    }
+    document.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    strip.current?.querySelector('.viewer-thumb-on')?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+  }, [i])
+
+  const p = photos[i]
+  return (
+    <div className="viewer" role="dialog" aria-modal="true" aria-label={`Photos of ${title}`}>
+      <div className="viewer-bar">
+        <span className="viewer-count">
+          {i + 1} / {n}
         </span>
+        <button type="button" className="viewer-close" aria-label="Close photos" onClick={() => onClose(i)}>
+          <X size={22} strokeWidth={2} />
+        </button>
+      </div>
+      <div
+        className="viewer-stage"
+        onTouchStart={(e) => (touch.current = e.touches[0].clientX)}
+        onTouchEnd={(e) => {
+          if (touch.current === null) return
+          const dx = e.changedTouches[0].clientX - touch.current
+          touch.current = null
+          if (Math.abs(dx) > 40) (dx < 0 ? next : prev)()
+        }}
+      >
+        <img key={p.id} src={p.url} alt={`${title}, photo ${i + 1} of ${n}`} className="viewer-img" />
+        {n > 1 && (
+          <>
+            <button type="button" className="viewer-arrow viewer-prev" aria-label="Previous photo" onClick={prev}>
+              <ChevronLeft size={24} strokeWidth={2} />
+            </button>
+            <button type="button" className="viewer-arrow viewer-next" aria-label="Next photo" onClick={next}>
+              <ChevronRight size={24} strokeWidth={2} />
+            </button>
+          </>
+        )}
+      </div>
+      {n > 1 && (
+        <div className="viewer-strip" ref={strip}>
+          {photos.map((ph, k) => (
+            <button
+              key={ph.id}
+              type="button"
+              className={k === i ? 'viewer-thumb viewer-thumb-on' : 'viewer-thumb'}
+              aria-label={`Photo ${k + 1}`}
+              aria-current={k === i}
+              onClick={() => setI(k)}
+            >
+              <img src={ph.thumbUrl || ph.url} alt="" loading="lazy" />
+            </button>
+          ))}
+        </div>
       )}
     </div>
   )

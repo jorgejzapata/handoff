@@ -57,6 +57,16 @@ function tint(map: MlMap) {
       else if (layer.type === 'fill' && /water/.test(layer.id)) map.setPaintProperty(layer.id, 'fill-color', water)
       else if (layer.type === 'fill' && /park|landcover_grass|landuse_park|wood/.test(layer.id))
         map.setPaintProperty(layer.id, 'fill-color', sage)
+      // The stock dark basemap is nearly black-on-black. Lift streets and
+      // labels so seekers can read the neighborhood.
+      else if (dark && layer.type === 'line' && /road|street|highway|transport|bridge|tunnel|path/.test(layer.id))
+        map.setPaintProperty(layer.id, 'line-color', /casing/.test(layer.id) ? '#1A2520' : '#3E5046')
+      else if (dark && layer.type === 'fill' && /building/.test(layer.id))
+        map.setPaintProperty(layer.id, 'fill-color', '#1F2B24')
+      else if (dark && layer.type === 'symbol') {
+        map.setPaintProperty(layer.id, 'text-color', '#AEB8AE')
+        map.setPaintProperty(layer.id, 'text-halo-color', canvas)
+      }
     } catch {
       /* layer without that paint property */
     }
@@ -73,6 +83,17 @@ function circlePolygon(lat: number, lng: number, radiusM: number) {
     coords.push([lng + dLng * Math.cos(a), lat + dLat * Math.sin(a)])
   }
   return { type: 'Feature' as const, properties: {}, geometry: { type: 'Polygon' as const, coordinates: [coords] } }
+}
+
+// The house marker sits at the circle's center, which is already rounded to
+// the approximate area (see approximate() in lib/geo), never the real door.
+function homeMarkerElement() {
+  const el = document.createElement('div')
+  el.className = 'map-home'
+  el.setAttribute('aria-hidden', 'true')
+  el.innerHTML =
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>'
+  return el
 }
 
 function addCircle(map: MlMap, circle: NonNullable<MapViewProps['circle']>) {
@@ -102,6 +123,7 @@ export default function MapView({
   const el = useRef<HTMLDivElement>(null)
   const map = useRef<MlMap | null>(null)
   const markers = useRef<Map<string, Marker>>(new Map())
+  const home = useRef<Marker | null>(null)
   const circleRef = useRef(circle)
   circleRef.current = circle
   const onPinRef = useRef(onPinClick)
@@ -141,6 +163,8 @@ export default function MapView({
       mq.removeEventListener('change', onScheme)
       markers.current.forEach((mk) => mk.remove())
       markers.current.clear()
+      home.current?.remove()
+      home.current = null
       m.remove()
       map.current = null
     }
@@ -150,6 +174,10 @@ export default function MapView({
   useEffect(() => {
     const m = map.current
     if (!m) return
+    if (circle) {
+      home.current ??= new Marker({ element: homeMarkerElement(), anchor: 'center' })
+      home.current.setLngLat([circle.lng, circle.lat]).addTo(m)
+    } else home.current?.remove()
     if (!circle) {
       if (m.getLayer('area-fill')) m.setLayoutProperty('area-fill', 'visibility', 'none')
       if (m.getLayer('area-line')) m.setLayoutProperty('area-line', 'visibility', 'none')
