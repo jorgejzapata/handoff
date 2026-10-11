@@ -33,7 +33,7 @@ function titleFor({ reason, listerName }: OpenArgs) {
     case 'messages':
       return 'Sign up to see your messages'
     case 'login':
-      return 'Log in to Handoff'
+      return 'Sign up for Handoff'
   }
 }
 
