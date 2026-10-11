@@ -54,12 +54,23 @@ Then `npm run deploy:rules` (boostOrders rules) and `npm run deploy`.
 ## Pricing and the $1 listing fee
 
 The first 50 listings ever published are free; after that, posting costs $1
-once (`FREE_LISTINGS` in `src/lib/pricing.ts` and `functions/src/stats.ts`).
-Boosts unlock at 25 live listings. Both numbers live in `stats/listings`, kept
-by the `onListingStatusChange` function, and skip internal accounts: flip
-"Test account" in Admin → Users for Jorge and the test accounts.
+once. Boosts unlock at 25 live listings. Both counts live in `stats/listings`,
+kept by the `onListingStatusChange` function, and skip internal accounts:
+flip "Test account" in Admin → Users for Jorge and the test accounts.
 
-The $1 checkout runs in test mode on dev and localhost (no card, no charge).
-Prod has it off, so posting stays free there until Stripe is wired up.
-To preview the paid side locally, open any page with `?devPublished=60`
-(and `&devLive=30` for boosts); `?devPublished=clear` resets.
+Switches live in one Firestore doc, `config/pricing`, edited in the Firebase
+console (no redeploy):
+
+| Field          | Values                       | Missing means                 |
+| -------------- | ---------------------------- | ----------------------------- |
+| `listingFee`   | `"off"`, `"test"`, `"stripe"` | `"test"` on dev, `"off"` on prod |
+| `freeListings` | number of free spots         | 50                            |
+
+- `"stripe"`: real Stripe Checkout; the webhook publishes the listing once
+  paid, and the rules stop the app publishing for free.
+- `"test"`: a fake checkout, no card (dev only; prod treats it as off).
+- To try a real test payment on dev: set `listingFee: "stripe"` and
+  `freeListings: 0`, then pay with card `4242 4242 4242 4242`.
+
+To preview the paid screens locally without Stripe, open any page with
+`?devPublished=60` (and `&devLive=30` for boosts); `?devPublished=clear` resets.

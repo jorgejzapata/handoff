@@ -189,16 +189,16 @@ service cloud.firestore {
     }
 
     // Can the app publish this itself, for free? Yes unless the $1 fee is on
-    // (config/pricing.listingFee == 'stripe') and the first 50 free spots are
-    // gone; then only the Stripe webhook publishes. Keep 50 in sync with
-    // FREE_LISTINGS in functions/src/stats.ts.
+    // (config/pricing.listingFee == 'stripe') and the free spots
+    // (config/pricing.freeListings, default 50) are gone; then only the
+    // Stripe webhook publishes. Keep 50 in sync with functions/src/stats.ts.
     function freePublishAllowed() {
       let cfg = /databases/$(database)/documents/config/pricing;
       let st = /databases/$(database)/documents/stats/listings;
       return !exists(cfg)
         || get(cfg).data.get('listingFee', 'off') != 'stripe'
         || !exists(st)
-        || get(st).data.get('published', 0) < 50;
+        || get(st).data.get('published', 0) < get(cfg).data.get('freeListings', 50);
     }
 
     match /listings/{listingId} {
@@ -574,6 +574,7 @@ service cloud.firestore {
 
     // Pricing switches, set in the Firebase console:
     //   listingFee: 'off' | 'test' | 'stripe'
+    //   freeListings: number of free spots (default 50)
     match /config/{configId} {
       allow get: if configId == 'pricing';
       allow list, write: if false;

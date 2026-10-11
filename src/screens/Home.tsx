@@ -228,8 +228,9 @@ export default function Home() {
 // doubles as the launch hook; after that it's one plain line.
 function PostingPrice({ stats }: { stats: ListingStats | null }) {
   const fee = listingFeeApplies(stats)
-  const left = stats ? freeSpotsLeft(stats) : FREE_LISTINGS
-  const used = FREE_LISTINGS - left
+  const total = stats?.free ?? FREE_LISTINGS
+  const left = stats ? freeSpotsLeft(stats) : total
+  const used = total - left
 
   if (fee)
     return (
@@ -260,16 +261,16 @@ function PostingPrice({ stats }: { stats: ListingStats | null }) {
       {stats && used >= 5 ? (
         <div className="free-spots">
           <div className="free-spots-text">
-            <span>Free for the first {FREE_LISTINGS} places</span>
+            <span>Free for the first {total} places</span>
             <span>{left} left</span>
           </div>
-          <div className="progress" role="progressbar" aria-label="Free spots used" aria-valuemin={0} aria-valuemax={FREE_LISTINGS} aria-valuenow={used}>
-            <div className="progress-fill" style={{ width: `${(used / FREE_LISTINGS) * 100}%` }} />
+          <div className="progress" role="progressbar" aria-label="Free spots used" aria-valuemin={0} aria-valuemax={total} aria-valuenow={used}>
+            <div className="progress-fill" style={{ width: `${total ? (used / total) * 100 : 100}%` }} />
           </div>
         </div>
       ) : (
         <p className="caption">
-          <strong>The first {FREE_LISTINGS} places post free.</strong>
+          <strong>The first {total} places post free.</strong>
         </p>
       )}
       <p className="caption muted">

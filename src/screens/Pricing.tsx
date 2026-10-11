@@ -16,7 +16,8 @@ import {
 export default function Pricing() {
   const stats = useListingStats()
   const feeOn = listingFeeApplies(stats)
-  const left = stats ? freeSpotsLeft(stats) : FREE_LISTINGS
+  const total = stats?.free ?? FREE_LISTINGS
+  const left = stats ? freeSpotsLeft(stats) : total
   const fee = formatCents(LISTING_FEE_CENTS)
 
   return (
@@ -42,7 +43,7 @@ export default function Pricing() {
           icon={<KeyRound size={22} strokeWidth={1.5} />}
           title="Posting your place"
           price={feeOn ? fee : 'Free'}
-          note={feeOn ? 'One time, per listing' : `For the first ${FREE_LISTINGS} places`}
+          note={feeOn ? 'One time, per listing' : `For the first ${total} places`}
           points={[
             feeOn ? 'Pay once when you publish' : `Then ${fee} one time, per listing`,
             'Edit, share and mark it filled for free',
@@ -51,7 +52,7 @@ export default function Pricing() {
           footer={
             !feeOn && stats && left > 0 ? (
               <span className="caption pricing-flag">
-                {left === 1 ? '1 free spot left' : `${left} of ${FREE_LISTINGS} free spots left`}
+                {left === 1 ? '1 free spot left' : `${left} of ${total} free spots left`}
               </span>
             ) : undefined
           }

@@ -1,10 +1,18 @@
-import { Check, CircleAlert, FlaskConical, Lock } from 'lucide-react'
-import { useState } from 'react'
+import { Check, CircleAlert, CircleCheck, FlaskConical, Info, Lock } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router'
+import { useAuth } from '../../components/AuthProvider'
+import { setDraftPointer } from '../../lib/draftCarry'
+import { watchListingOrder } from '../../lib/listingFee'
+import type { ListingOrder } from '../../lib/listingFee'
+import { clearListingsCache } from '../../lib/useListings'
+import { track } from '../../lib/track'
 import { Sheet } from '../../components/Sheet'
 import { ListingPhoto } from '../../components/ListingCard'
 import type { Listing } from '../../lib/listings'
 import { formatCents } from '../../lib/boosts'
-import { FREE_LISTINGS, LISTING_CHECKOUT, LISTING_FEE_CENTS } from '../../lib/pricing'
+import { LISTING_FEE_CENTS } from '../../lib/pricing'
+import type { CheckoutMode } from '../../lib/pricing'
 import { formatDates, formatRent } from '../../lib/format'
 
 const dayFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -19,10 +27,16 @@ export function ListingFeeBody({
   listing,
   expiresAt,
   error,
+  note,
+  mode,
+  freeSpots,
 }: {
   listing: Listing
   expiresAt: Date
   error: string | null
+  note?: string | null
+  mode: CheckoutMode
+  freeSpots: number
 }) {
   const fee = formatCents(LISTING_FEE_CENTS)
   return (
@@ -31,7 +45,9 @@ export function ListingFeeBody({
         <p className="eyebrow">Last step</p>
         <h1 className="title">Publish for {fee}</h1>
         <p className="muted">
-          Handoff’s first {FREE_LISTINGS} places went up free. From here it’s {fee}, once, to keep listings real.
+          {freeSpots > 0
+            ? `Handoff’s first ${freeSpots} places went up free. From here it’s ${fee}, once, to keep listings real.`
+            : `It’s ${fee}, once, to keep listings real.`}
         </p>
       </div>
 
@@ -73,6 +89,13 @@ export function ListingFeeBody({
         ))}
       </ul>
 
+      {note && !error && (
+        <p className="notice">
+          <Info size={18} strokeWidth={1.5} aria-hidden="true" />
+          <span>{note}</span>
+        </p>
+      )}
+
       {error && (
         <p className="form-error fee-error" role="alert">
           <CircleAlert size={16} strokeWidth={1.5} aria-hidden="true" />
@@ -80,7 +103,7 @@ export function ListingFeeBody({
         </p>
       )}
 
-      {LISTING_CHECKOUT === 'test' ? (
+      {mode === 'test' ? (
         <p className="caption muted fee-secure">
           <FlaskConical size={12} strokeWidth={1.5} aria-hidden="true" /> Test mode: Stripe isn’t connected yet, so
           nothing is charged.
@@ -97,7 +120,7 @@ export function ListingFeeBody({
 }
 
 // Stands in for Stripe Checkout until it's wired up. Lets you try both the
-// paid and the declined path. Never shown in prod (LISTING_CHECKOUT is 'off').
+// paid and the declined path. Never shown in prod (test mode is dev only).
 export function TestCheckoutSheet({
   onPaid,
   onDeclined,
@@ -137,5 +160,84 @@ export function TestCheckoutSheet({
         Try a declined card
       </button>
     </Sheet>
+  )
+}
+
+// /post/paid?order=…: where Stripe sends them back. Waits for the webhook to
+// publish the listing, then goes straight to "You're live!".
+export function ListingFeeResult() {
+  const [params] = useSearchParams()
+  const orderId = params.get('order')
+  const navigate = useNavigate()
+  const { rawUser, loading } = useAuth()
+  const [order, setOrder] = useState<ListingOrder | null | undefined>()
+  const [slow, setSlow] = useState(false)
+
+  useEffect(() => {
+    if (loading || !rawUser || !orderId) return
+    const t = setTimeout(() => setSlow(true), 30_000)
+    const stop = watchListingOrder(orderId, setOrder, () => setOrder(null))
+    return () => {
+      clearTimeout(t)
+      stop()
+    }
+  }, [orderId, rawUser, loading])
+
+  useEffect(() => {
+    if (order?.status !== 'paid') return
+    track('listing_fee_paid', {
+      listing_id: order.listingId,
+      value: order.amountCents / 100,
+      currency: 'USD',
+      store: 'stripe',
+    })
+    track('listing_published', { listing_id: order.listingId, listing_fee: true })
+    setDraftPointer(null)
+    clearListingsCache()
+    navigate(`/post/live/${order.listingId}`, { replace: true })
+  }, [order?.status]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (order?.status === 'refunding' || order?.status === 'refunded')
+    return (
+      <div className="page empty boost-result">
+        <CircleCheck size={48} strokeWidth={1.5} aria-hidden="true" className="ok-icon" />
+        <p className="heading">Your place was already live.</p>
+        <p className="muted">So we refunded the {formatCents(order.amountCents)}. It can take a few days to show up.</p>
+        <Link to="/me/listings" className="btn btn-primary">
+          Your listings
+        </Link>
+      </div>
+    )
+
+  if (order && (order.status === 'failed' || order.status === 'expired'))
+    return (
+      <div className="page empty boost-result">
+        <CircleAlert size={48} strokeWidth={1.5} aria-hidden="true" />
+        <p className="heading">That payment didn’t go through.</p>
+        <p className="muted">No charge was made. Your draft is saved.</p>
+        <Link to="/post?checkout=1" className="btn btn-primary">
+          Try again
+        </Link>
+      </div>
+    )
+
+  return (
+    <div className="page empty boost-result" aria-live="polite">
+      {slow ? (
+        <>
+          <p className="heading">Payment received. Your place goes live within a minute.</p>
+          <p className="muted">We’ll email you when it’s up.</p>
+          <Link to="/me/listings" className="btn btn-secondary">
+            Your listings
+          </Link>
+        </>
+      ) : (
+        <>
+          <span className="spinner" aria-hidden="true" />
+          <p className="heading">Publishing your place…</p>
+          <p className="muted">Confirming your payment with Stripe.</p>
+        </>
+      )}
+    </div>
   )
 }

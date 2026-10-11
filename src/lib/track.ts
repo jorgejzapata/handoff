@@ -77,7 +77,7 @@ const SCREENS: [RegExp, string][] = [
   [/^\/listings\/?$/, 'browse'],
   [/^\/listings\/[^/]+$/, 'listing_detail'],
   [/^\/post\/live\//, 'post_live'],
-  [/^\/post\/checkout\//, 'listing_fee'],
+  [/^\/post\/paid/, 'listing_fee_result'],
   [/^\/post/, 'post'],
   [/^\/messages\/?$/, 'messages'],
   [/^\/messages\/[^/]+$/, 'thread'],
