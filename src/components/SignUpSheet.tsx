@@ -15,6 +15,9 @@ import { track } from '../lib/track'
 type Reason = PendingAction['reason']
 interface OpenArgs {
   reason: Reason
+  // Which tab to open on. Without it: Log in on a device that has had an
+  // account, Sign up everywhere else.
+  mode?: 'signup' | 'login'
   listerName?: string
   listingId?: string
   message?: string
@@ -23,19 +26,20 @@ interface OpenArgs {
 const SignUpContext = createContext<{ open: (args: OpenArgs) => void }>({ open: () => {} })
 export const useSignUp = () => useContext(SignUpContext)
 
-function titleFor({ reason, listerName }: OpenArgs) {
-  switch (reason) {
-    case 'say-hi':
-      return `Sign up to say hi to ${listerName ?? 'them'}`
-    case 'save':
-      return 'Sign up to save places'
-    case 'publish':
-      return 'Sign up to publish your place'
-    case 'messages':
-      return 'Sign up to see your messages'
-    case 'login':
-      return 'Join Handoff'
-  }
+// One line under the tabs that names what they were doing.
+function leadFor({ reason, listerName }: OpenArgs, mode: 'signup' | 'login') {
+  const doing =
+    reason === 'say-hi'
+      ? `say hi to ${listerName ?? 'them'}`
+      : reason === 'save'
+        ? 'save places'
+        : reason === 'publish'
+          ? 'publish your place'
+          : reason === 'messages'
+            ? 'see your messages'
+            : null
+  if (mode === 'login') return doing ? `Welcome back. Log in to ${doing}.` : 'Welcome back. Use the email you signed up with.'
+  return doing ? `Make a free account to ${doing}. It takes a minute.` : "It's free, and you're in right away."
 }
 
 export function SignUpProvider({ children }: { children: ReactNode }) {
@@ -72,7 +76,7 @@ type Mode = 'signup' | 'login' | 'reset'
 function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void }) {
   // New devices start on Sign up, devices that have had an account start on
   // Log in. Either way the two tabs at the top make the mode obvious.
-  const [mode, setMode] = useState<Mode>(isReturningDevice() ? 'login' : 'signup')
+  const [mode, setMode] = useState<Mode>(args.mode ?? (isReturningDevice() ? 'login' : 'signup'))
   const [showPassword, setShowPassword] = useState(false)
   const [firstName, setFirstName] = useState('')
   const [email, setEmail] = useState('')
@@ -151,7 +155,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
     })
   }
 
-  const title = mode === 'login' ? 'Welcome back' : mode === 'reset' ? 'Reset your password' : titleFor(args)
+  const lead = mode === 'reset' ? "We'll email you a link to set a new one." : leadFor(args, mode)
   const fieldError = (f: FriendlyError['field']) => (error?.field === f ? error : null)
 
   return (
@@ -170,20 +174,27 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
           <X size={20} strokeWidth={1.5} />
         </button>
 
-        {mode !== 'reset' && (
-          <div className="segmented auth-tabs" role="tablist" aria-label="Sign up or log in">
+        {mode === 'reset' ? (
+          <h2 id={titleId} className="title-sm auth-reset-title">
+            Reset your password
+          </h2>
+        ) : (
+          <div className="auth-tabs" role="tablist" aria-labelledby={titleId}>
+            <span id={titleId} className="sr-only">
+              Sign up or log in
+            </span>
             {(
               [
                 ['signup', 'Sign up'],
                 ['login', 'Log in'],
-              ] as [Mode, string][]
+              ] as ['signup' | 'login', string][]
             ).map(([m, label]) => (
               <button
                 key={m}
                 type="button"
                 role="tab"
                 aria-selected={mode === m}
-                className={mode === m ? 'seg seg-on' : 'seg'}
+                className={mode === m ? 'auth-tab auth-tab-on' : 'auth-tab'}
                 onClick={() => switchMode(m)}
                 disabled={busy}
               >
@@ -192,13 +203,7 @@ function SignUpSheet({ args, onClose }: { args: OpenArgs; onClose: () => void })
             ))}
           </div>
         )}
-
-        <h2 id={titleId} className="title-sm">
-          {title}
-        </h2>
-        {mode === 'signup' && <p className="muted">New here? It's free, and you're in right away.</p>}
-        {mode === 'login' && <p className="muted">Log in with the email you signed up with.</p>}
-        {mode === 'reset' && !resetSent && <p className="muted">We'll email you a link to set a new one.</p>}
+        {!(mode === 'reset' && resetSent) && <p className="muted auth-lead">{lead}</p>}
 
         {mode === 'reset' && resetSent ? (
           <p className="notice">Check your inbox for a reset link. Not there? Check Junk.</p>

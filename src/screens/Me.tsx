@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { BadgeCheck, ChartColumn, ChevronRight, CircleAlert, FileText, House, LogOut, Settings, ShieldCheck } from 'lucide-react'
+import { BadgeCheck, ChartColumn, ChevronRight, CircleAlert, FileText, House, LogOut, Settings, ShieldCheck, User } from 'lucide-react'
 import { checkIsAdmin } from '../lib/admin'
 import { useAuth } from '../components/AuthProvider'
 import { useSignUp } from '../components/SignUpSheet'
@@ -21,11 +21,18 @@ export default function Me() {
 
   if (!user) {
     return (
-      <div className="page empty">
-        <p className="heading">Sign up or log in to see your listings and messages.</p>
-        <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'login' })}>
-          Sign up or log in
-        </button>
+      <div className="page empty signed-out">
+        <User size={48} strokeWidth={1.5} aria-hidden="true" />
+        <p className="heading">Your listings and messages live here.</p>
+        <p className="muted">Free to join. You'll need an account to post, save and message.</p>
+        <div className="signed-out-actions">
+          <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'login', mode: 'signup' })}>
+            Sign up
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => open({ reason: 'login', mode: 'login' })}>
+            Log in
+          </button>
+        </div>
       </div>
     )
   }

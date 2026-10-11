@@ -57,9 +57,14 @@ export function TopBar() {
               <NavAvatar name={name} photoUrl={photoUrl} className="avatar avatar-sm" />
             </Link>
           ) : (
-            <button type="button" className="text-link" onClick={() => open({ reason: 'login' })}>
-              Log in
-            </button>
+            <>
+              <button type="button" className="text-link topbar-login" onClick={() => open({ reason: 'login', mode: 'login' })}>
+                Log in
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => open({ reason: 'login', mode: 'signup' })}>
+                Sign up
+              </button>
+            </>
           ))}
         <Link to="/post" className="btn btn-primary btn-sm">
           Post your place
@@ -141,9 +146,9 @@ export function BottomNav() {
             <User {...ICON} />
           )
         }
-        label={user ? 'Me' : 'Log in'}
+        label={user ? 'Me' : 'Sign up'}
         round={!!user}
-        gate={user ? undefined : () => open({ reason: 'login' })}
+        gate={user ? undefined : () => open({ reason: 'login', mode: 'signup' })}
       />
     </nav>
   )

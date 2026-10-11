@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { User } from 'lucide-react'
 import Terms from './screens/legal/Terms'
 import Privacy from './screens/legal/Privacy'
 import Safety from './screens/legal/Safety'
@@ -94,11 +95,18 @@ function RequireUser({ children }: { children: React.ReactNode }) {
   if (loading) return null
   if (user) return <>{children}</>
   return (
-    <div className="page empty">
-      <p className="heading">Sign up or log in to see your account.</p>
-      <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'login' })}>
-        Sign up or log in
-      </button>
+    <div className="page empty signed-out">
+        <User size={48} strokeWidth={1.5} aria-hidden="true" />
+        <p className="heading">Your account lives here.</p>
+        <p className="muted">Free to join. You'll need an account to post, save and message.</p>
+        <div className="signed-out-actions">
+          <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'login', mode: 'signup' })}>
+            Sign up
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={() => open({ reason: 'login', mode: 'login' })}>
+            Log in
+          </button>
+        </div>
     </div>
   )
 }

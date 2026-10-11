@@ -1117,6 +1117,23 @@ button.metric-tile:hover { filter: brightness(0.97); }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
 .manage-boost { display: inline-flex; align-items: center; gap: 6px; }
 
-/* Sign up / Log in tabs on the auth sheet */
-.auth-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 4px 40px 2px 0; }
-.auth-tabs .seg { min-height: 40px; font-size: 14px; }
+/* Auth sheet: the two tabs are the title. Same underline as the active
+   top-bar link (lime), set in the title type. */
+.auth-tabs {
+  display: flex; gap: 24px; margin: 2px 0 0; padding-right: 44px;
+  border-bottom: 1px solid var(--line);
+}
+.auth-tab {
+  min-height: 44px; padding: 0 0 6px; margin-bottom: -1px;
+  font: 800 20px/24px var(--font-display); letter-spacing: -0.01em;
+  color: var(--muted); border-bottom: 3px solid transparent;
+}
+.auth-tab-on { color: var(--ink); border-bottom-color: var(--lime-300); }
+.auth-tab:focus-visible { outline: 2px solid var(--forest-600); outline-offset: 2px; border-radius: 4px; }
+.auth-lead { margin-top: -2px; }
+.auth-reset-title { padding-right: 40px; }
+.topbar-login { font-weight: 500; }
+.signed-out { gap: 10px; }
+.signed-out > svg { color: var(--forest-600); }
+.signed-out-actions { display: flex; gap: var(--space-2); margin-top: 6px; }
+.signed-out-actions .btn { min-width: 120px; }
