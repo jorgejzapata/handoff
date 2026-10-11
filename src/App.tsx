@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { User } from 'lucide-react'
+import { Heart, House, MessageCircle, User } from 'lucide-react'
 import Terms from './screens/legal/Terms'
 import Privacy from './screens/legal/Privacy'
 import Safety from './screens/legal/Safety'
@@ -73,17 +73,33 @@ function NoBottomNav() {
 }
 
 // Saved, messages and listing management need a real account.
-function RequireMember({ children }: { children: React.ReactNode }) {
+// What a signed-out visitor sees on a members-only page: what lives here,
+// and both doors in.
+const GATES = {
+  saved: { icon: Heart, heading: 'Places you save live here.', reason: 'save' },
+  messages: { icon: MessageCircle, heading: 'Your chats with listers live here.', reason: 'messages' },
+  listings: { icon: House, heading: 'Your listings live here.', reason: 'messages' },
+} as const
+
+function RequireMember({ children, gate = 'messages' }: { children: React.ReactNode; gate?: keyof typeof GATES }) {
   const { loading, member } = useAuth()
   const { open } = useSignUp()
   if (loading) return null
   if (member) return <>{children}</>
+  const { icon: Icon, heading, reason } = GATES[gate]
   return (
-    <div className="page empty">
-      <p className="heading">Sign up or log in to keep going.</p>
-      <button type="button" className="btn btn-primary" onClick={() => open({ reason: 'messages' })}>
-        Sign up
-      </button>
+    <div className="page empty signed-out">
+      <Icon size={48} strokeWidth={1.5} aria-hidden="true" />
+      <p className="heading">{heading}</p>
+      <p className="muted">Free to join. You'll need an account to post, save and message.</p>
+      <div className="signed-out-actions">
+        <button type="button" className="btn btn-primary" onClick={() => open({ reason, mode: 'signup' })}>
+          Sign up
+        </button>
+        <button type="button" className="btn btn-secondary" onClick={() => open({ reason, mode: 'login' })}>
+          Log in
+        </button>
+      </div>
     </div>
   )
 }
@@ -148,7 +164,7 @@ export default function App() {
           <Route
             path="saved"
             element={
-              <RequireMember>
+              <RequireMember gate="saved">
                 <Saved />
               </RequireMember>
             }
@@ -165,7 +181,7 @@ export default function App() {
           <Route
             path="me/listings"
             element={
-              <RequireMember>
+              <RequireMember gate="listings">
                 <MyListings />
               </RequireMember>
             }

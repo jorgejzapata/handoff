@@ -1198,3 +1198,7 @@ button.metric-tile:hover { filter: brightness(0.97); }
 .signed-out-actions .btn { min-width: 120px; }
 .post-map { display: flex; flex-direction: column; gap: 6px; }
 .post-map-note { text-align: center; }
+/* Desktop: empty and signed-out pages sit clear of the 72px top bar. */
+@media (min-width: 1024px) {
+  .page.empty { padding-top: 120px; padding-bottom: 96px; }
+}
